@@ -1,2 +1,2 @@
-# ComputeShader_Bellard
- calc pi by Bellard formula
+# CLBellardのAndroid移植
+実質スマホベンチマーク
