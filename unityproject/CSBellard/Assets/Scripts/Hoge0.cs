@@ -10,6 +10,9 @@ public class Hoge0 : MonoBehaviour
     float[] host_B;
     float[] host_C;
 
+    int gridn = 4096 / 2;
+    int blockn = 512;
+
     ComputeBuffer A;
     ComputeBuffer B;
     ComputeBuffer C;
@@ -26,6 +29,7 @@ public class Hoge0 : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("init 0");
         host_A = new float[] { 1f, 1f, 1f, 1f };
         host_B = new float[] { 1f, 1f, 1f, 1f };
         host_C = new float[] { 0f, 0f, 0f, 0f };
@@ -33,7 +37,7 @@ public class Hoge0 : MonoBehaviour
         A = new ComputeBuffer(host_A.Length, sizeof(float));
         B = new ComputeBuffer(host_B.Length, sizeof(float));
         C = new ComputeBuffer(host_C.Length, sizeof(float));
-        bigSum = new ComputeBuffer(4096 * 256 * 3, sizeof(ulong));
+        bigSum = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
         
         k = shader.FindKernel("CSMain");
         k2 = shader.FindKernel("Sglobal64mtg_192_Refresh");
@@ -65,16 +69,18 @@ public class Hoge0 : MonoBehaviour
 
         cnt = 0;
         flag = 1;
+        Debug.Log("init 1");
     }
 
 
     // Update is called once per frame
     void Update()
     {
-        if (flag == 1) 
+        if (flag >= 1) 
         {
+            flag++;
             offset = k_max;
-            k_max = k_max + 256 * 4096 * 8;
+            k_max = k_max + (ulong)gridn * (ulong)blockn * 8;
             if (k_max > k_max_end) k_max = k_max_end;
 
             ulongtouint2(offset, inputint2);
@@ -83,13 +89,19 @@ public class Hoge0 : MonoBehaviour
             shader.SetInts("k_max", inputint2);
 
             // GPUで計算
-            shader.Dispatch(k2, 4096, 1, 1);
+            shader.Dispatch(k2, gridn, 1, 1);
             //shader.Dispatch(k, 1, 1, 1);
-            C.GetData(host_C);
+            //C.GetData(host_C);
             if (k_max == k_max_end)
             {
+                Debug.Log("gpu calc end!");
                 flag = 0;
                 endf();
+            }
+            if (flag == 2)
+            {
+                C.GetData(host_C);
+                Debug.Log("first kernel");
             }
         }
 
@@ -104,10 +116,10 @@ public class Hoge0 : MonoBehaviour
         //ulong[] host_dbg0=new ulong[1];
         //dbg0.GetData(host_dbg0);
 
-        ulong[] ulres = new ulong[4096 * 256 * 3];
+        ulong[] ulres = new ulong[gridn * blockn * 3];
         bigSum.GetData(ulres);
         ulong ans0 = 0, ans1 = 0, ans2 = 0;
-        for (int i = 0; i < 4096 * 256; i++)
+        for (int i = 0; i < gridn * blockn; i++)
         {
             ans0 += ulres[i * 3 + 0];
             if (ans0 < ulres[i * 3 + 0])
