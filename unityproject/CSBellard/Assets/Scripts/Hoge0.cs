@@ -64,7 +64,7 @@ public class Hoge0 : MonoBehaviour
         shader.SetInt("den1", 1);
 
         cnt = 0;
-        flag = 1;
+        flag = 0;
     }
 
 
@@ -85,7 +85,6 @@ public class Hoge0 : MonoBehaviour
             // GPUで計算
             shader.Dispatch(k2, 4096, 1, 1);
             C.GetData(host_C);
-            Debug.Log(cnt);
             if (k_max == k_max_end)
             {
                 flag = 0;
@@ -93,6 +92,7 @@ public class Hoge0 : MonoBehaviour
             }
         }
 
+        Debug.Log(cnt);
         cnt++;
     }
 
