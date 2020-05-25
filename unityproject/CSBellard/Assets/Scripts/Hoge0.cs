@@ -52,7 +52,7 @@ public class Hoge0 : MonoBehaviour
         d = 799999999999999;
         offset =    137438953472000;
         k_max = offset;
-        k_max_end = 137438993472000;
+        k_max_end = 137439993472000;
         //ulong k_max_end = 137576392425472;
 
         inputint2=new int[2];
@@ -62,9 +62,11 @@ public class Hoge0 : MonoBehaviour
         shader.SetInt("numesign", 1);
         shader.SetInt("den0", 4);
         shader.SetInt("den1", 1);
+        shader.SetInt("mask0000ffff", 65535);
+        shader.SetInt("mask16", 16);
 
         cnt = 0;
-        flag = 0;
+        flag = 1;
     }
 
 
@@ -83,7 +85,8 @@ public class Hoge0 : MonoBehaviour
             shader.SetInts("k_max", inputint2);
 
             // GPUで計算
-            shader.Dispatch(k2, 4096, 1, 1);
+            shader.Dispatch(k2, 1, 1, 1);
+            //shader.Dispatch(k, 1, 1, 1);
             C.GetData(host_C);
             if (k_max == k_max_end)
             {
@@ -92,7 +95,7 @@ public class Hoge0 : MonoBehaviour
             }
         }
 
-        Debug.Log(cnt);
+        if (cnt%256==100)Debug.Log(cnt);
         cnt++;
     }
 

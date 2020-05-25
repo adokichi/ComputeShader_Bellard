@@ -16,8 +16,8 @@ uint2 k_max;
 uint numesign;
 uint den0;
 uint den1;
-
-
+uint mask0000ffff;
+uint mask16;
 
 [numthreads(4, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -42,12 +42,12 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	uint tmp = ab01 + ab10;
 	if (tmp < ab01)ab11 += 65536;
 
-	outhilo.x = ab00 + (tmp % 65536) * 65536;
+	outhilo.x = ab00 + ((tmp & mask0000ffff) << 16);
 	if (outhilo.x < ab00) {
 		ab11++;
 	}
 
-	outhilo.y = ab11 + tmp / 65536;
+	outhilo.y = ab11 + (tmp >> 16);
 	return outhilo;
 }
 
@@ -60,17 +60,35 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	uint b32 = b.y;
 	uint b10 = b.x;
 
+
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 / 65536;
-	u2a32.x = a32 % 65536;
-	u2a10.y = a10 / 65536;
-	u2a10.x = a10 % 65536;
+	u2a32.y = a32 >> mask16;
+	u2a32.x = a32 & mask0000ffff;
+	u2a10.y = a10 >> mask16;
+	u2a10.x = a10 & mask0000ffff;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 / 65536;
-	u2b32.x = b32 % 65536;
-	u2b10.y = b10 / 65536;
-	u2b10.x = b10 % 65536;
+	u2b32.y = b32 >> mask16;
+	u2b32.x = b32 & mask0000ffff;
+	u2b10.y = b10 >> mask16;
+	u2b10.x = b10 & mask0000ffff;
+
+	/*
+			uint4 out44;
+			out44.x = a.y+ mask0000ffff;
+			out44.y = b.y+ mask0000ffff;
+			out44.z = b.x- mask0000ffff;
+			out44.w = a.x- mask0000ffff;
+			return out44;
+			*/
+	/*
+			uint4 out44;
+			out44.x = u2a10.x;
+			out44.y = u2a32.x;
+			out44.z = u2b32.x;
+			out44.w = u2b10.x;
+			return out44;
+			*/
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -156,6 +174,8 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	out4.y = C4;
 	out4.z = C5;
 	out4.w = C3;
+
+
 	return out4;
 }
 
@@ -576,24 +596,29 @@ uint2 mulmodn(uint2 x, uint2 y, uint2 n, int s, uint2 v)
 /* Compute x^p mod n by means of left-to-right binary exponentiation. */
 uint2 powmodn(uint2 x, uint2 p, uint2 n)
 {
-	//uint2 x=ultou2(xul);
-	//uint2 p=ultou2(pul);
-	//uint2 n=ultou2(nul);
 	uint2 res, v;
 	int i, l, s;
 	s = clz2(n);
 
 	v = reciprocal_word(u2shl(n, s));
+
 	res = x;
 	l = 63 - clz2(p);
+
+	int ttt = 0;
+
 	for (i = l - 1; i >= 0; i--) {
 		res = mulmodn(res, res, n, s, v);
 		uint2 tmp = u2shr(p, i);
 		if (tmp.x % 2 == 1) {
 			res = mulmodn(res, x, n, s, v);
 		}
+		ttt++;
+		if (ttt==64)break;
 	}
 	return res;
+	
+	
 }
 
 
@@ -742,11 +767,14 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 	{
 		cstmp.x = 1024; cstmp.y = 0;
 		nmr = powmodn(cstmp, ulsub(d,k), dnm);
+
+		//nmr = reciprocal_word(dnm);
+
 		//k^-1のところ。答えを適宜反転
 		if (revflg) {
 			nmr = ulsub(dnm, nmr);
 		}
-
+		
 		uint2 u[4];
 		u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmr;
 		uint2 q[4];
@@ -756,12 +784,12 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 		uint2 v, kk, ui;
 		uint4 out4;
 		int l, i;
-		/* Normalize d, storing the shift amount in l. */
+		// Normalize d, storing the shift amount in l. 
 		l = clz2(dnm);
 		uint2 d_dmy = u2shl(dnm, l);
-		/* Compute the reciprocal. */
+		// Compute the reciprocal. 
 		v = reciprocal_word(d_dmy);
-		/* Perform the division. */
+		// Perform the division. 
 		kk = u2shr(u[4 - 1], 64 - l);
 		for (i = 4 - 1; i >= 1; i--) {
 			ui = u2shl(u[i], l) | u2shr(u[i - 1], 64 - l);
@@ -773,8 +801,10 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 		out4 = div2by1(kk, u2shl(u[0], l), d_dmy, v);
 		q[0] = out4.xy;
 		//ここまで divnby1
+		
 
 
+		
 		out3 = uladdofw(ulsum2_, q[0]);
 		ulsum2_ = out3.xy;
 		if (out3.z == 1) {
@@ -796,8 +826,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 		}
 
 		ulsum0_ = uladd(ulsum0_, q[2]);
-
-
+		
 		dnm = uladd(dnm,dnmadd);
 
 		//forに書いていたやつ
@@ -839,8 +868,6 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
 	bigSum[idx * 3 + 2] = ulsum0_;
-
-
 
 }
 
