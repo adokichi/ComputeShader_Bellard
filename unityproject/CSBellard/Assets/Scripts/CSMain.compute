@@ -16,8 +16,6 @@ uint2 k_max;
 uint numesign;
 uint den0;
 uint den1;
-uint mask0000ffff;
-uint mask16;
 
 [numthreads(4, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -42,7 +40,7 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	uint tmp = ab01 + ab10;
 	if (tmp < ab01)ab11 += 65536;
 
-	outhilo.x = ab00 + ((tmp & mask0000ffff) << 16);
+	outhilo.x = ab00 + ((tmp % 65536) << 16);
 	if (outhilo.x < ab00) {
 		ab11++;
 	}
@@ -62,33 +60,17 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 
 
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 >> mask16;
-	u2a32.x = a32 & mask0000ffff;
-	u2a10.y = a10 >> mask16;
-	u2a10.x = a10 & mask0000ffff;
+	u2a32.y = a32 / 65536;
+	u2a32.x = a32 % 65536;
+	u2a10.y = a10 / 65536;
+	u2a10.x = a10 % 65536;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 >> mask16;
-	u2b32.x = b32 & mask0000ffff;
-	u2b10.y = b10 >> mask16;
-	u2b10.x = b10 & mask0000ffff;
+	u2b32.y = b32 / 65536;
+	u2b32.x = b32 % 65536;
+	u2b10.y = b10 / 65536;
+	u2b10.x = b10 % 65536;
 
-	/*
-			uint4 out44;
-			out44.x = a.y+ mask0000ffff;
-			out44.y = b.y+ mask0000ffff;
-			out44.z = b.x- mask0000ffff;
-			out44.w = a.x- mask0000ffff;
-			return out44;
-			*/
-	/*
-			uint4 out44;
-			out44.x = u2a10.x;
-			out44.y = u2a32.x;
-			out44.z = u2b32.x;
-			out44.w = u2b10.x;
-			return out44;
-			*/
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
