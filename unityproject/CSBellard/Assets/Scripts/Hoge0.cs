@@ -53,10 +53,10 @@ public class Hoge0 : MonoBehaviour
         shader.SetBuffer(k2, "bigSum", bigSum);
         //shader.SetBuffer(k2, "dbg0", dbg0);
 
-        d = 799999999999999;
-        offset =    137438953472000;
+        d = 399999999;
+        offset =    0;
         k_max = offset;
-        k_max_end = 137439993472000;
+        k_max_end = d + 1;
         //ulong k_max_end = 137576392425472;
 
         inputint2 =new int[2];
