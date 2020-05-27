@@ -21,10 +21,10 @@ public class Hoge0 : MonoBehaviour
     int[] inputint2;
 
     int step;//式0-6のうちどれを計算しているか
-    int[] nmr = { 5, 5, 8, 6, 2, 2, 0 };//Bellard式の分子が2の何乗か
+    int[] nmr = { 5, 0, 8, 6, 2, 2, 0 };//Bellard式の分子が2の何乗か
     int[] nmrsign = { 1, 1, 0, 1, 1, 1, 0 };//Bellard式の分子の符号
     int[] den0 = { 4, 4, 10, 10, 10, 10, 10 };//Bellard式の分母のkの係数
-    int[] den1 = { 1, 1, 1, 3, 5, 7, 9 };//Bellard式の分母の端数項
+    int[] den1 = { 1, 3, 1, 3, 5, 7, 9 };//Bellard式の分母の端数項
     ulong ans0 = 0, ans1 = 0, ans2 = 0;
 
 
@@ -35,11 +35,11 @@ public class Hoge0 : MonoBehaviour
 
     void parameset() {
 
-        //d = 399999999;
-        d =      799999999999999;
-        offset = 8589934592 * 10000;
+        d = 399999999;
+        //d =      799999999999999;
+        offset = 0;
         k_max = offset;
-        k_max_end = offset + 8589934592;
+        k_max_end = d + 1;//8589934592
 
         inputint2 = new int[2];
         ulongtouint2(d, inputint2);
@@ -48,14 +48,12 @@ public class Hoge0 : MonoBehaviour
         shader.SetInt("numesign", nmrsign[step]);
         shader.SetInt("den0", den0[step]);
         shader.SetInt("den1", den1[step]);
-
         shader.Dispatch(kernelZeroset, gridn, 1, 1);
     }
 
     void Start()
     {
         Debug.Log("init 0");
-
 
         A = new ComputeBuffer(gridn * blockn * 3 / 4, sizeof(ulong));
         B = new ComputeBuffer(gridn * blockn * 3 / 4, sizeof(ulong));
@@ -76,7 +74,7 @@ public class Hoge0 : MonoBehaviour
         Debug.Log("init 1");
     }
 
-    void Calc() 
+    void Calc()
     {
         offset = k_max;
         k_max = k_max + (ulong)gridn * (ulong)blockn * 8;
@@ -93,7 +91,6 @@ public class Hoge0 : MonoBehaviour
 
         if (k_max == k_max_end)
         {
-            Debug.Log("gpu calc end!");
             ReducAB();
             step++;
             if (step < 7)
@@ -158,7 +155,6 @@ public class Hoge0 : MonoBehaviour
         ulong[] ulres = new ulong[igridn * 64 * 3];
         lastreslut.GetData(ulres,0,0, igridn * 64 * 3);
 
-
         ulong tmpans0 = 0, tmpans1 = 0, tmpans2 = 0;
         for (int i = 0; i < igridn * 64; i++)
         {
@@ -175,12 +171,15 @@ public class Hoge0 : MonoBehaviour
             }
             tmpans2 += ulres[i * 3 + 2];
         }
+
         //分子をかける＝シフト
-        tmpans2 <<= nmr[step];
-        tmpans2 += tmpans1 >> (64 - nmr[step]);
-        tmpans1 <<= nmr[step];
-        tmpans1 += tmpans0 >> (64 - nmr[step]);
-        tmpans0 <<= nmr[step];
+        if (nmr[step] != 0) {
+            tmpans2 <<= nmr[step];
+            tmpans2 += tmpans1 >> (64 - nmr[step]);
+            tmpans1 <<= nmr[step];
+            tmpans1 += tmpans0 >> (64 - nmr[step]);
+            tmpans0 <<= nmr[step];
+        }
 
         ans0 += tmpans0;
         if (ans0 < tmpans0)
@@ -195,11 +194,9 @@ public class Hoge0 : MonoBehaviour
         }
         ans2 += tmpans2;
 
-
+        
         Debug.Log(tmpans0.ToString("x16"));
         Debug.Log(tmpans1.ToString("x16"));
         Debug.Log(tmpans2.ToString("x16"));
     }
 }
-
-

@@ -704,6 +704,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		//forに書いていたやつ
 		k.x += gsize;
 		if (k.x < gsize) k.y++;
+
 	}
 	//長いループ終了
 
@@ -719,10 +720,11 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 	up4 += (ulsum0_.x < up3);
 	ulsum0_.y += up4;
 
-
+	
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
 	bigSum[idx * 3 + 2] = ulsum0_;
+	
 }
 
 
