@@ -1,13 +1,11 @@
-﻿#pragma kernel CSMain
-#pragma kernel Sglobal64mtg_192_Refresh
+﻿#pragma kernel Sglobal64mtg_192_Refresh
+#pragma kernel SumGlobal
+#pragma kernel Zeroset
 //Read and Write
-
-RWStructuredBuffer<float> A;
-RWStructuredBuffer<float> B;
-RWStructuredBuffer<float> C;
+RWStructuredBuffer<uint2> A;
+RWStructuredBuffer<uint2> B;
 RWStructuredBuffer<uint2> bigSum;
 
-//RWStructuredBuffer<uint2> dbg0;
 
 
 uint2 offset;
@@ -16,13 +14,6 @@ uint2 k_max;
 uint numesign;
 uint den0;
 uint den1;
-
-[numthreads(4, 1, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
-{
-	C[id.x] = A[id.x] + B[id.x];
-}
-
 
 
 
@@ -614,88 +605,6 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 
 
 
-/*
-
-//1threadあたりulongを3つもっているので256threadで全部結果をまとめて繰り上がり処理して結果をグローバルメモリに書き込み
-void shared_reduction_ulong3(uint2* ulsum0_, uint2* ulsum1_, uint2* ulsum2_, __local uint2* p) {
-	//shared memoryは4or8kbまで使えるので、とりあえず4として
-	ulong ulsum0 = *ulsum0_;
-	ulong ulsum1 = *ulsum1_;
-	ulong ulsum2 = *ulsum2_;
-
-	uint lidx = get_local_id(0);
-	if (lidx >= 128) {
-		p[(lidx % 128) * 3 + 2] = ulsum2;
-		p[(lidx % 128) * 3 + 1] = ulsum1;
-		p[(lidx % 128) * 3 + 0] = ulsum0;
-	}
-	barrier(CLK_LOCAL_MEM_FENCE);
-	if (lidx < 128) {
-		p[lidx * 3 + 2] += ulsum2;
-		if (p[lidx * 3 + 2] < ulsum2) {//繰り上がり考慮
-			ulsum1++;
-			if (ulsum1 == 0)ulsum0++;//繰り上がり考慮
-		}
-		p[lidx * 3 + 1] += ulsum1;
-		if (p[lidx * 3 + 1] < ulsum1)ulsum0++;//繰り上がり考慮
-		p[lidx * 3 + 0] += ulsum0;
-	}
-
-	ulong dmy0, dmy1, dmy2;
-	for (uint i = 64; i > 0; i /= 2)
-	{
-		barrier(CLK_LOCAL_MEM_FENCE);
-		if (lidx < i) {
-			ulsum0 = p[lidx * 3 + 0];
-			ulsum1 = p[lidx * 3 + 1];
-			ulsum2 = p[lidx * 3 + 2];
-			dmy0 = p[(lidx + i) * 3 + 0];
-			dmy1 = p[(lidx + i) * 3 + 1];
-			dmy2 = p[(lidx + i) * 3 + 2];
-			ulsum2 += dmy2;
-			if (ulsum2 < dmy2) {
-				dmy1++;
-				if (dmy1 == 0)dmy0++;
-			}
-			ulsum1 += dmy1;
-			if (ulsum1 < dmy1)dmy0++;
-			ulsum0 += dmy0;
-			p[lidx * 3 + 0] = ulsum0;
-			p[lidx * 3 + 1] = ulsum1;
-			p[lidx * 3 + 2] = ulsum2;
-		}
-	}
-
-	*ulsum0_ = ulsum0;
-	*ulsum1_ = ulsum1;
-	*ulsum2_ = ulsum2;
-}
-
-
-//グローバルメモリに加算書き込み
-void ulong3GlobalADD(ulong ulsum0, ulong ulsum1, ulong ulsum2, __global ulong* bigSum)
-{
-	if (get_local_id(0) == 0) {
-		ulong dmy0 = bigSum[get_group_id(0) * 3 + 0];
-		ulong dmy1 = bigSum[get_group_id(0) * 3 + 1];
-		ulong dmy2 = bigSum[get_group_id(0) * 3 + 2];
-		ulsum2 += dmy2;
-		if (ulsum2 < dmy2) {
-			dmy1++;
-			if (dmy1 == 0)dmy0++;
-		}
-		ulsum1 += dmy1;
-		if (ulsum1 < dmy1)dmy0++;
-		ulsum0 += dmy0;
-		bigSum[get_group_id(0) * 3 + 0] = ulsum0;
-		bigSum[get_group_id(0) * 3 + 1] = ulsum1;
-		bigSum[get_group_id(0) * 3 + 2] = ulsum2;
-	}
-}
-*/
-
-
-
 
 
 
@@ -705,11 +614,12 @@ void ulong3GlobalADD(ulong ulsum0, ulong ulsum1, ulong ulsum2, __global ulong* b
 
 
 //dispatchでは256*1*1でやっているので合計256*256thread
-[numthreads(512, 1, 1)]
+[numthreads(256, 1, 1)]
 //メイン計算部分モンゴメリ乗算版64bit、2つのdouble-double(105bit*2)を64bit整数*3にまとめる
 //というバージョンをさらに改造してリフレッシュしたやつ
 //モンゴメリ乗算、最後の割り算はdiv2by1のソースをネットのからコピペしてやっている
-void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
+void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
+{
 //__global ulong* bigSum,
 //const ulong offset,
 //const ulong d,
@@ -733,24 +643,21 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 	dnm.x += den1;//
 	dnm.y += (dnm.x < den1);
 
-
 	uint2 dnmadd;// = gsize * den0;
 	dnmadd.x = gsize * den0; dnmadd.y = 0;
 
 	uint2 nmr;//分子
 
 	//double-double精度を2つ使って192bitに結果を収める。上のループと比べると試行回数は１回なので少し非効率でも大丈夫
-	uint2 ulsum0_ = 0;//最上位桁
-	uint2 ulsum1_ = 0;//中間
-	uint2 ulsum2_ = 0;//最下位桁
-	uint3 out3;
+	uint2 ulsum0_ = bigSum[idx * 3 + 2];//最上位桁
+	uint2 ulsum1_ = bigSum[idx * 3 + 1];//中間
+	uint2 ulsum2_ = bigSum[idx * 3 + 0];//最下位桁
+	uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;
 
 	for (; lt(k, k_max);)
 	{
 		cstmp.x = 1024; cstmp.y = 0;
 		nmr = powmodn(cstmp, ulsub(d,k), dnm);
-
-		//nmr = reciprocal_word(dnm);
 
 		//k^-1のところ。答えを適宜反転
 		if (revflg) {
@@ -784,73 +691,91 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID){
 		q[0] = out4.xy;
 		//ここまで divnby1
 		
+		ulsum2_ += q[0];
+		ulsum1_ += q[1];
+		ulsum0_ += q[2];
+		up0 += (ulsum2_.x < q[0].x);
+		up1 += (ulsum2_.y < q[0].y);
+		up2 += (ulsum1_.x < q[1].x);
+		up3 += (ulsum1_.y < q[1].y);
+		up4 += (ulsum0_.x < q[2].x);//最上位桁
 
-
-		
-		out3 = uladdofw(ulsum2_, q[0]);
-		ulsum2_ = out3.xy;
-		if (out3.z == 1) {
-			q[1].x += 1;
-			if (q[1].x == 0) {
-				q[1].y += 1;
-				if (q[1].y == 0) {
-					q[2].x += 1;
-					if (q[2].x == 0)q[2].y++;
-				}
-			}
-		}
-
-		out3 = uladdofw(ulsum1_, q[1]);
-		ulsum1_ = out3.xy;
-		if (out3.z == 1) {
-			q[2].x += 1;
-			if (q[2].x == 0)q[2].y++;
-		}
-
-		ulsum0_ = uladd(ulsum0_, q[2]);
-		
 		dnm = uladd(dnm,dnmadd);
-
 		//forに書いていたやつ
 		k.x += gsize;
-		if (k.x < gsize)k.y++;
+		if (k.x < gsize) k.y++;
 	}
-
 	//長いループ終了
-	/*
-	__local uint2 p[128 * 3];
-	shared_reduction_ulong3(&ulsum0_, &ulsum1_, &ulsum2_, p);
-	//グローバルメモリに加算書き込み
-	ulong3GlobalADD(ulsum0, ulsum1, ulsum2, bigSum);
-	*/
 
 
-	out3 = uladdofw(ulsum2_, bigSum[idx * 3 + 0]);
-	ulsum2_ = out3.xy;
-	if (out3.z == 1) {
-		bigSum[idx * 3 + 1].x += 1;
-		if (bigSum[idx * 3 + 1].x == 0) {
-			bigSum[idx * 3 + 1].y += 1;
-			if (bigSum[idx * 3 + 1].y == 0) {
-				bigSum[idx * 3 + 2].x += 1;
-				if (bigSum[idx * 3 + 2].x == 0)bigSum[idx * 3 + 2].y++;
-			}
-		}
-	}
+	//繰り上がり
+	ulsum2_.y += up0;
+	up1 += (ulsum2_.y < up0);
+	ulsum1_.x += up1;
+	up2 += (ulsum1_.x < up1);
+	ulsum1_.y += up2;
+	up3 += (ulsum1_.y < up2);
+	ulsum0_.x += up3;
+	up4 += (ulsum0_.x < up3);
+	ulsum0_.y += up4;
 
-	out3 = uladdofw(ulsum1_, bigSum[idx * 3 + 1]);
-	ulsum1_ = out3.xy;
-	if (out3.z == 1) {
-		bigSum[idx * 3 + 2].x += 1;
-		if (bigSum[idx * 3 + 2].x == 0)bigSum[idx * 3 + 2].y++;
-	}
-
-	ulsum0_ = uladd(ulsum0_, bigSum[idx * 3 + 2]);
 
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
 	bigSum[idx * 3 + 2] = ulsum0_;
-
 }
 
-/////////////////////////64bitバージョン　ルーチンここまで//////////////////////
+
+[numthreads(256, 1, 1)]
+void Zeroset(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0;
+	bigSum[idx * 3 + 1] = 0;
+	bigSum[idx * 3 + 2] = 0;
+}
+
+
+
+
+//リダクション256→64にまとめ。A→Bに書き込み
+[numthreads(64, 1, 1)]
+void SumGlobal(uint idx : SV_DispatchThreadID) {
+	uint2 ulsum0_ = A[(idx * 4 + 0) * 3 + 2];//最上位桁
+	uint2 ulsum1_ = A[(idx * 4 + 0) * 3 + 1];//中間
+	uint2 ulsum2_ = A[(idx * 4 + 0) * 3 + 0];//最下位桁
+	uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;
+
+	uint2 q[3];
+
+	for (int i = 1; i < 4; i++) 
+	{
+		q[2] = A[(idx * 4 + i) * 3 + 2];//最上位桁
+		q[1] = A[(idx * 4 + i) * 3 + 1];//中間
+		q[0] = A[(idx * 4 + i) * 3 + 0];//最下位桁
+		ulsum2_ += q[0];
+		ulsum1_ += q[1];
+		ulsum0_ += q[2];
+		up0 += (ulsum2_.x < q[0].x);
+		up1 += (ulsum2_.y < q[0].y);
+		up2 += (ulsum1_.x < q[1].x);
+		up3 += (ulsum1_.y < q[1].y);
+		up4 += (ulsum0_.x < q[2].x);//最上位桁
+	}
+
+
+	//繰り上がり
+	ulsum2_.y += up0;
+	up1 += (ulsum2_.y < up0);
+	ulsum1_.x += up1;
+	up2 += (ulsum1_.x < up1);
+	ulsum1_.y += up2;
+	up3 += (ulsum1_.y < up2);
+	ulsum0_.x += up3;
+	up4 += (ulsum0_.x < up3);
+	ulsum0_.y += up4;
+
+	B[idx * 3 + 0] = ulsum2_;
+	B[idx * 3 + 1] = ulsum1_;
+	B[idx * 3 + 2] = ulsum0_;
+	return;
+}
