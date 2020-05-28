@@ -631,7 +631,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 	uint2 k = offset;
 	k.x += idx;
 	if (k.x < idx)k.y++;
-	bool revflg;
+	int revflg;
 	revflg = ((numesign + k.x % 2) % 2);
 
 	uint2 dnm;// = den0 * k + den1;//分母
@@ -660,7 +660,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		nmr = powmodn(cstmp, ulsub(d,k), dnm);
 
 		//k^-1のところ。答えを適宜反転
-		if (revflg) {
+		if (revflg==1) {
 			nmr = ulsub(dnm, nmr);
 		}
 		
