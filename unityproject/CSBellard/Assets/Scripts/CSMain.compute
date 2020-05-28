@@ -5,7 +5,7 @@
 RWStructuredBuffer<uint2> A;
 RWStructuredBuffer<uint2> B;
 RWStructuredBuffer<uint2> bigSum;
-
+StructuredBuffer<uint> ConstTable;
 
 
 uint2 offset;
@@ -31,7 +31,7 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	uint tmp = ab01 + ab10;
 	if (tmp < ab01)ab11 += 65536;
 
-	outhilo.x = ab00 + ((tmp % 65536) << 16);
+	outhilo.x = ab00 + ((tmp & 0x0000ffff) << 16);
 	if (outhilo.x < ab00) {
 		ab11++;
 	}
@@ -51,16 +51,16 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 
 
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 / 65536;
-	u2a32.x = a32 % 65536;
-	u2a10.y = a10 / 65536;
-	u2a10.x = a10 % 65536;
+	u2a32.y = a32 >> 16;
+	u2a32.x = a32 & 0x0000ffff;
+	u2a10.y = a10 >> 16;
+	u2a10.x = a10 & 0x0000ffff;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 / 65536;
-	u2b32.x = b32 % 65536;
-	u2b10.y = b10 / 65536;
-	u2b10.x = b10 % 65536;
+	u2b32.y = b32 >> 16;
+	u2b32.x = b32 & 0x0000ffff;
+	u2b10.y = b10 >> 16;
+	u2b10.x = b10 & 0x0000ffff;
 
 
 	uint C1, C0, C3, C2, C4, C5;
@@ -93,8 +93,8 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	}
 
 
-	uint2 u2ina; u2ina.y = a32 / 65536; u2ina.x = a32 % 65536;
-	uint2 u2inb; u2inb.y = b32 / 65536; u2inb.x = b32 % 65536;
+	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 & 0x0000ffff;
+	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 & 0x0000ffff;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -160,16 +160,16 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 	uint b10 = b.x;
 
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 / 65536;
-	u2a32.x = a32 % 65536;
-	u2a10.y = a10 / 65536;
-	u2a10.x = a10 % 65536;
+	u2a32.y = a32>> 16;
+	u2a32.x = a32 & 0x0000ffff;
+	u2a10.y = a10>> 16;
+	u2a10.x = a10 & 0x0000ffff;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 / 65536;
-	u2b32.x = b32 % 65536;
-	u2b10.y = b10 / 65536;
-	u2b10.x = b10 % 65536;
+	u2b32.y = b32>> 16;
+	u2b32.x = b32 & 0x0000ffff;
+	u2b10.y = b10>> 16;
+	u2b10.x = b10 & 0x0000ffff;
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -199,8 +199,8 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 		b32 -= b10;
 	}
 
-	uint2 u2ina; u2ina.y = a32 / 65536; u2ina.x = a32 % 65536;
-	uint2 u2inb; u2inb.y = b32 / 65536; u2inb.x = b32 % 65536;
+	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 & 0x0000ffff;
+	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 & 0x0000ffff;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -261,11 +261,11 @@ uint2 u2mymullo128(uint2 a, uint2 b) {
 	uint b32 = b.y;
 	uint b10 = b.x;
 
-	uint a1 = a10 / 65536;
-	uint a0 = a10 % 65536;
+	uint a1 = a10>> 16;
+	uint a0 = a10 & 0x0000ffff;
 
-	uint b1 = b10 / 65536;
-	uint b0 = b10 % 65536;
+	uint b1 = b10>> 16;
+	uint b0 = b10 & 0x0000ffff;
 
 	uint C1, C0;
 
@@ -436,7 +436,8 @@ bool lt(uint2 aa, uint2 bb) {
 
 
 uint CreateTable(uint idx) {
-	return (524288 - 3 * 256) / (idx + 256);
+	//return (524288 - 3 * 256) / (idx + 256);
+	return ConstTable[idx];
 }
 
 /* Algorithm 2 from Mﾃｶller and Granlund
@@ -636,7 +637,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 
 	uint2 dnm;// = den0 * k + den1;//分母
 	uint2 a10; a10.x = den0; a10.y = 0;
-	uint2 b10; b10.x = k.x % 65536; b10.y = k.x / 65536;
+	uint2 b10; b10.x = k.x & 0x0000ffff; b10.y = k.x>> 16;
 	uint2 cstmp;
 	dnm = mymul64(a10, b10);
 	dnm.y += k.y * den0;
