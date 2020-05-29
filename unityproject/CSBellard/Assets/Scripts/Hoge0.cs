@@ -60,7 +60,7 @@ public class Hoge0 : MonoBehaviour
     void Calc()
     {
         offset = k_max;
-        k_max = k_max + (ulong)gridn * (ulong)blockn * 4;
+        k_max = k_max + (ulong)gridn * (ulong)blockn * 2;
         if (k_max > k_max_end) k_max = k_max_end;
 
         ulongtouint2(offset, inputint2);

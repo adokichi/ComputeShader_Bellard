@@ -31,12 +31,12 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	uint tmp = ab01 + ab10;
 	if (tmp < ab01)ab11 += 65536;
 
-	outhilo.x = ab00 + ((tmp % 65536) << 16);
+	outhilo.x = ab00 + ((tmp &0x0000ffff) << 16);
 	if (outhilo.x < ab00) {
 		ab11++;
 	}
 
-	outhilo.y = ab11 + (tmp / 65536);
+	outhilo.y = ab11 + (tmp >> 16);
 	return outhilo;
 }
 
@@ -49,16 +49,16 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	uint b32 = b.y;
 	uint b10 = b.x;
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 / 65536;
-	u2a32.x = a32 % 65536;
-	u2a10.y = a10 / 65536;
-	u2a10.x = a10 % 65536;
+	u2a32.y = a32 >> 16;
+	u2a32.x = a32 &0x0000ffff;
+	u2a10.y = a10 >> 16;
+	u2a10.x = a10 &0x0000ffff;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 / 65536;
-	u2b32.x = b32 % 65536;
-	u2b10.y = b10 / 65536;
-	u2b10.x = b10 % 65536;
+	u2b32.y = b32 >> 16;
+	u2b32.x = b32 &0x0000ffff;
+	u2b10.y = b10 >> 16;
+	u2b10.x = b10 &0x0000ffff;
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -87,8 +87,8 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 		b32 -= b10;
 	}
 
-	uint2 u2ina; u2ina.y = a32/ 65536; u2ina.x = a32 % 65536;
-	uint2 u2inb; u2inb.y = b32/ 65536; u2inb.x = b32 % 65536;
+	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 &0x0000ffff;
+	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 &0x0000ffff;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -152,16 +152,16 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 	uint b10 = b.x;
 
 	uint2 u2a10, u2a32;
-	u2a32.y = a32/ 65536;
-	u2a32.x = a32 % 65536;
-	u2a10.y = a10/ 65536;
-	u2a10.x = a10 % 65536;
+	u2a32.y = a32>> 16;
+	u2a32.x = a32 &0x0000ffff;
+	u2a10.y = a10>> 16;
+	u2a10.x = a10 &0x0000ffff;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32/ 65536;
-	u2b32.x = b32 % 65536;
-	u2b10.y = b10/ 65536;
-	u2b10.x = b10 % 65536;
+	u2b32.y = b32>> 16;
+	u2b32.x = b32 &0x0000ffff;
+	u2b10.y = b10>> 16;
+	u2b10.x = b10 &0x0000ffff;
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -190,8 +190,8 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 		b32 -= b10;
 	}
 
-	uint2 u2ina; u2ina.y = a32/ 65536; u2ina.x = a32 % 65536;
-	uint2 u2inb; u2inb.y = b32/ 65536; u2inb.x = b32 % 65536;
+	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 &0x0000ffff;
+	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 &0x0000ffff;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -251,11 +251,11 @@ uint2 u2mymullo128(uint2 a, uint2 b) {
 	uint b32 = b.y;
 	uint b10 = b.x;
 
-	uint a1 = a10/ 65536;
-	uint a0 = a10 % 65536;
+	uint a1 = a10>> 16;
+	uint a0 = a10 &0x0000ffff;
 
-	uint b1 = b10/ 65536;
-	uint b0 = b10 % 65536;
+	uint b1 = b10>> 16;
+	uint b0 = b10 &0x0000ffff;
 
 	uint C1, C0;
 
@@ -521,8 +521,6 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 	l = 63 - clz2(p);
 	
 	i = l - 1;
-
-
 	for (int ttt = 0; ttt < 64; ttt++) 
 	{
 		if (i < 0) break;
@@ -627,7 +625,6 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		k.x += gsize;
 		if (k.x < gsize) k.y++;
 	}
-	
 	//長いループ終了
 
 	//繰り上がり
@@ -644,7 +641,6 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
 	bigSum[idx * 3 + 2] = ulsum0_;
-	
 }
 
 
