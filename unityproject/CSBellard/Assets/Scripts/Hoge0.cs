@@ -24,7 +24,7 @@ public class Hoge0 : MonoBehaviour
     ulong d, offset, k_max, k_max_end;
     int[] inputint2;
 
-    int step;//式0-6のうちどれを計算しているか
+    public int step;//式0-6のうちどれを計算しているか
     int[] nmr = { 5, 0, 8, 6, 2, 2, 0 };//Bellard式の分子が2の何乗か
     int[] nmrsign = { 1, 1, 0, 1, 1, 1, 0 };//Bellard式の分子の符号
     int[] den0 = { 4, 4, 10, 10, 10, 10, 10 };//Bellard式の分母のkの係数
@@ -34,46 +34,10 @@ public class Hoge0 : MonoBehaviour
 
 
 
-
     void ulongtouint2(ulong a,int[] b) {
         b[0] = (int)(a % (ulong)4294967296);
         b[1] = (int)(a / (ulong)4294967296);
     }
-
-    void parameset() {
-        offset = cpuoffset * debug0+256;//かならず256からはじめるよう
-        if (d < offset) offset = d;
-        k_max = offset;
-        k_max_end = d;
-
-        inputint2 = new int[2];
-        ulongtouint2(d, inputint2);
-
-        shader.SetInts("d", inputint2);
-        shader.SetInt("numesign", nmrsign[step]);
-        shader.SetInt("den0", den0[step]);
-        shader.SetInt("den1", den1[step]);
-        shader.Dispatch(kernelZeroset, gridn, 1, 1);
-        starttime = Time.time;
-    }
-
-    void Calc()
-    {
-        offset = k_max;
-        k_max = k_max + (ulong)gridn * (ulong)blockn * 2;
-        if (k_max > k_max_end) k_max = k_max_end;
-
-        ulongtouint2(offset, inputint2);
-        shader.SetInts("offset", inputint2);
-        ulongtouint2(offset * (ulong)den0[step], inputint2);
-        shader.SetInts("offset_mul_den0", inputint2);
-        ulongtouint2(k_max, inputint2);
-        shader.SetInts("k_max", inputint2);
-
-        // GPUで計算
-        shader.Dispatch(k2, gridn, 1, 1);
-    }
-
 
 
     void Start()
@@ -128,14 +92,81 @@ public class Hoge0 : MonoBehaviour
 
         //d = 39999999;
         d = cpuoffset;
+
         step = 0;
         parameset();
-
         ans0 = 0;
         ans1 = 0;
         ans2 = 0;
         Debug.Log("init end");
+        step = 90;
     }
+
+
+
+
+
+
+
+
+
+
+    void parameset()
+    {
+        offset = cpuoffset * debug0 + 256;//かならず256からはじめるよう
+        if (d < offset) offset = d;
+        k_max = offset;
+        k_max_end = d;
+
+        inputint2 = new int[2];
+        ulongtouint2(d, inputint2);
+
+        shader.SetInts("d", inputint2);
+        shader.SetInt("numesign", nmrsign[step]);
+        shader.SetInt("den0", den0[step]);
+        shader.SetInt("den1", den1[step]);
+        shader.Dispatch(kernelZeroset, gridn, 1, 1);
+        starttime = Time.time;
+    }
+
+    public void ButtonPush(ulong inul)
+    {
+        cpuoffset = inul;
+        d = cpuoffset;
+        step = 0;
+        parameset();
+    }
+
+
+    void DebugAns012(ulong a0,ulong a1,ulong a2) 
+    {
+        string s = a2.ToString("x16") + a1.ToString("x16") + a0.ToString("x16");
+        Debug.Log(s);
+    }
+
+    void Calc()
+    {
+        offset = k_max;
+        k_max = k_max + (ulong)gridn * (ulong)blockn * 2;
+        if (k_max > k_max_end) k_max = k_max_end;
+
+        ulongtouint2(offset, inputint2);
+        shader.SetInts("offset", inputint2);
+        ulongtouint2(offset * (ulong)den0[step], inputint2);
+        shader.SetInts("offset_mul_den0", inputint2);
+        ulongtouint2(k_max, inputint2);
+        shader.SetInts("k_max", inputint2);
+
+        // GPUで計算
+        shader.Dispatch(k2, gridn, 1, 1);
+    }
+
+
+
+
+
+
+
 
 
     // Update is called once per frame
@@ -144,16 +175,11 @@ public class Hoge0 : MonoBehaviour
         if (step == 7) {
             
             Debug.Log("anser");
-            Debug.Log(ans0.ToString("x16"));
-            Debug.Log(ans1.ToString("x16"));
-            Debug.Log(ans2.ToString("x16"));
+            DebugAns012(ans0, ans1, ans2);
             
             step++;
             //解放
-            A.Release();
-            B.Release();
-            bigSum.Release();
-            constTable.Release();
+            
         }
 
         if (step < 7)
@@ -174,6 +200,16 @@ public class Hoge0 : MonoBehaviour
         }
 
     }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -287,12 +323,17 @@ public class Hoge0 : MonoBehaviour
         
         Debug.Log("step"+step);
         Debug.Log("time=" + (Time.time - starttime));
-        
-        Debug.Log(tmpans0.ToString("x16"));
-        Debug.Log(tmpans1.ToString("x16"));
-        Debug.Log(tmpans2.ToString("x16"));
+
+        DebugAns012(tmpans0, tmpans1, tmpans2);
     }
 
 
 
+    private void OnDestroy()
+    {
+        A.Release();
+        B.Release();
+        bigSum.Release();
+        constTable.Release();
+    }
 }
