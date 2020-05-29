@@ -162,8 +162,8 @@ public class DivNBy1 : MonoBehaviour
         /* Normalize d, storing the shift amount in l. */
         l = clz(d);
         d <<= l;
-            /* Compute the reciprocal. */
-            v = reciprocal_word(d);
+        /* Compute the reciprocal. */
+        v = reciprocal_word(d);
         /* Perform the division. */
         k = shr(u[n - 1], 64 - l);
             for (i = n - 1; i >= 1; i--) {
@@ -172,6 +172,57 @@ public class DivNBy1 : MonoBehaviour
             }
         q[0] = div2by1(k, u[0] << l, d, ref k, v);
     }
+
+
+
+    /* Compute x * y mod n, where n << s is normalized and
+       v is the approximate reciprocal of n << s. */
+    ulong mulmodn(ulong x, ulong y, ulong n, int s, ulong v)
+    {
+        //ulong hi, lo, r;
+        ulong hi=0, lo = 0;
+        umul(x, y, ref hi, ref lo);
+        //uint4 out4 = u2mymul128(x, y);
+        //lo = out4.xy;
+        //hi = out4.zw;
+        ulong r=0;
+        ulong q1 = div2by1( (hi<<s) | (lo>>(64 - s)), lo<<s, n<<s,ref r, v);
+        
+        return r>>s;
+    }
+
+    /* Compute x^p mod n by means of left-to-right binary exponentiation. */
+    public ulong powmodn(ulong x, ulong p, ulong n)
+    {
+        ulong res, v;
+        int i, l, s;
+        s = clz(n);
+
+        v = reciprocal_word(n<<s);
+
+        res = x;
+        l = 63 - clz(p);
+
+        int ttt = 0;
+
+        for (i = l - 1; i >= 0; i--)
+        {
+            res = mulmodn(res, res, n, s, v);
+            ulong tmp = p>>i;
+            if (tmp % 2 == 1)
+            {
+                res = mulmodn(res, x, n, s, v);
+            }
+            ttt++;
+            if (ttt == 64) break;
+        }
+        return res;
+
+
+    }
+
+
+
 
 
     public void ul3add(ref ulong b0, ref ulong b1, ref ulong b2,ulong a0,ulong a1,ulong a2) 

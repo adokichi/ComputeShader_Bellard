@@ -6,15 +6,16 @@ RWStructuredBuffer<uint2> A;
 RWStructuredBuffer<uint2> B;
 RWStructuredBuffer<uint2> bigSum;
 StructuredBuffer<uint> ConstTable;
+RWStructuredBuffer<uint2> dbg;
 
-
+uint2 offset_mul_den0;
 uint2 offset;
 uint2 d;
 uint2 k_max;
 uint numesign;
 uint den0;
 uint den1;
-
+uint gsize;
 
 
 
@@ -27,16 +28,15 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	uint ab11 = a10.y * b10.y;
 	uint ab01 = a10.x * b10.y;
 	uint ab10 = a10.y * b10.x;
-
 	uint tmp = ab01 + ab10;
 	if (tmp < ab01)ab11 += 65536;
 
-	outhilo.x = ab00 + ((tmp & 0x0000ffff) << 16);
+	outhilo.x = ab00 + ((tmp % 65536) << 16);
 	if (outhilo.x < ab00) {
 		ab11++;
 	}
 
-	outhilo.y = ab11 + (tmp >> 16);
+	outhilo.y = ab11 + (tmp / 65536);
 	return outhilo;
 }
 
@@ -48,20 +48,17 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	uint a10 = a.x;
 	uint b32 = b.y;
 	uint b10 = b.x;
-
-
 	uint2 u2a10, u2a32;
-	u2a32.y = a32 >> 16;
-	u2a32.x = a32 & 0x0000ffff;
-	u2a10.y = a10 >> 16;
-	u2a10.x = a10 & 0x0000ffff;
+	u2a32.y = a32 / 65536;
+	u2a32.x = a32 % 65536;
+	u2a10.y = a10 / 65536;
+	u2a10.x = a10 % 65536;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32 >> 16;
-	u2b32.x = b32 & 0x0000ffff;
-	u2b10.y = b10 >> 16;
-	u2b10.x = b10 & 0x0000ffff;
-
+	u2b32.y = b32 / 65536;
+	u2b32.x = b32 % 65536;
+	u2b10.y = b10 / 65536;
+	u2b10.x = b10 % 65536;
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -73,8 +70,6 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 	u2out = mymul64(u2a32, u2b32);
 	C3 = u2out.y;
 	C2 = u2out.x;
-
-
 
 	if (a32 < a10) {
 		a32 = a10 - a32;
@@ -92,9 +87,8 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 		b32 -= b10;
 	}
 
-
-	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 & 0x0000ffff;
-	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 & 0x0000ffff;
+	uint2 u2ina; u2ina.y = a32/ 65536; u2ina.x = a32 % 65536;
+	uint2 u2inb; u2inb.y = b32/ 65536; u2inb.x = b32 % 65536;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -106,8 +100,6 @@ uint4 u2mymul128(uint2 a, uint2 b) {
 		C4 += 1;
 		flg = (C4 == 0);
 	}
-
-
 	uint tmp;
 
 	tmp = C4;
@@ -160,16 +152,16 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 	uint b10 = b.x;
 
 	uint2 u2a10, u2a32;
-	u2a32.y = a32>> 16;
-	u2a32.x = a32 & 0x0000ffff;
-	u2a10.y = a10>> 16;
-	u2a10.x = a10 & 0x0000ffff;
+	u2a32.y = a32/ 65536;
+	u2a32.x = a32 % 65536;
+	u2a10.y = a10/ 65536;
+	u2a10.x = a10 % 65536;
 
 	uint2 u2b10, u2b32;
-	u2b32.y = b32>> 16;
-	u2b32.x = b32 & 0x0000ffff;
-	u2b10.y = b10>> 16;
-	u2b10.x = b10 & 0x0000ffff;
+	u2b32.y = b32/ 65536;
+	u2b32.x = b32 % 65536;
+	u2b10.y = b10/ 65536;
+	u2b10.x = b10 % 65536;
 
 	uint C1, C0, C3, C2, C4, C5;
 	uint plmflg = 0;//プラスマイナスフラグ
@@ -181,7 +173,6 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 	u2out = mymul64(u2a32, u2b32);
 	C3 = u2out.y;
 	C2 = u2out.x;
-
 
 	if (a32 < a10) {
 		a32 = a10 - a32;
@@ -199,8 +190,8 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 		b32 -= b10;
 	}
 
-	uint2 u2ina; u2ina.y = a32>> 16; u2ina.x = a32 & 0x0000ffff;
-	uint2 u2inb; u2inb.y = b32>> 16; u2inb.x = b32 & 0x0000ffff;
+	uint2 u2ina; u2ina.y = a32/ 65536; u2ina.x = a32 % 65536;
+	uint2 u2inb; u2inb.y = b32/ 65536; u2inb.x = b32 % 65536;
 	u2out = mymul64(u2ina, u2inb);
 	C5 = u2out.y;
 	C4 = u2out.x;
@@ -246,7 +237,6 @@ uint2 u2mymulhi128(uint2 a, uint2 b) {
 
 	C3 += flg;
 	C3 -= (plmflg % 2 == 0);
-	//return ((ulong)C3)*(ulong)4294967296+(ulong)C5;
 	uint2 out2;
 	out2.x = C5;
 	out2.y = C3;
@@ -261,11 +251,11 @@ uint2 u2mymullo128(uint2 a, uint2 b) {
 	uint b32 = b.y;
 	uint b10 = b.x;
 
-	uint a1 = a10>> 16;
-	uint a0 = a10 & 0x0000ffff;
+	uint a1 = a10/ 65536;
+	uint a0 = a10 % 65536;
 
-	uint b1 = b10>> 16;
-	uint b0 = b10 & 0x0000ffff;
+	uint b1 = b10/ 65536;
+	uint b0 = b10 % 65536;
 
 	uint C1, C0;
 
@@ -276,8 +266,6 @@ uint2 u2mymullo128(uint2 a, uint2 b) {
 	C0 = u2out.x;
 	//mymul64(a1,a0,b1,b0,&C1,&C0);
 	C1 += a32 * b10 + a10 * b32;
-
-	//return ((ulong)C1)*(ulong)4294967296+(ulong)C0;
 
 	uint2 out2;
 	out2.x = C0;
@@ -342,7 +330,6 @@ int clz2(uint2 x2)
 		}
 	}
 
-
 	if ((1 << n) <= x) {
 		n++;
 	}
@@ -373,8 +360,8 @@ uint2 ulsub(uint2 a, uint2 b) {
 
 //足し算、オーバーフロー考慮あり
 uint3 uladdofw(uint2 a, uint2 b) {
-	uint3 outd;
-	outd.z = 0;
+	uint3 outd = 0;
+	//outd.z = 0;
 	outd.x = a.x + b.x;
 	if (outd.x < b.x) {
 		a.y++;
@@ -444,44 +431,9 @@ uint CreateTable(uint idx) {
    "Improved division by invariant integers". */
 uint2 reciprocal_word(uint2 d)
 {
-	//uint2 d=ultou2(uld);
-	uint2 v4, hi, lo, v3, ehat, v2, v1, d40, d63;
-	uint2 cstmp;
-	uint v0, d0, d9;
-	/*
-	const uint table[] = {
-	// Generated with:
-	//   for (int i = (1 << 8); i < (1 << 9); i++)
-	//           printf("0x%03x,\n", ((1 << 19) - 3 * (1 << 8)) / i);
-	0x7fd, 0x7f5, 0x7ed, 0x7e5, 0x7dd, 0x7d5, 0x7ce, 0x7c6, 0x7bf, 0x7b7,
-	0x7b0, 0x7a8, 0x7a1, 0x79a, 0x792, 0x78b, 0x784, 0x77d, 0x776, 0x76f,
-	0x768, 0x761, 0x75b, 0x754, 0x74d, 0x747, 0x740, 0x739, 0x733, 0x72c,
-	0x726, 0x720, 0x719, 0x713, 0x70d, 0x707, 0x700, 0x6fa, 0x6f4, 0x6ee,
-	0x6e8, 0x6e2, 0x6dc, 0x6d6, 0x6d1, 0x6cb, 0x6c5, 0x6bf, 0x6ba, 0x6b4,
-	0x6ae, 0x6a9, 0x6a3, 0x69e, 0x698, 0x693, 0x68d, 0x688, 0x683, 0x67d,
-	0x678, 0x673, 0x66e, 0x669, 0x664, 0x65e, 0x659, 0x654, 0x64f, 0x64a,
-	0x645, 0x640, 0x63c, 0x637, 0x632, 0x62d, 0x628, 0x624, 0x61f, 0x61a,
-	0x616, 0x611, 0x60c, 0x608, 0x603, 0x5ff, 0x5fa, 0x5f6, 0x5f1, 0x5ed,
-	0x5e9, 0x5e4, 0x5e0, 0x5dc, 0x5d7, 0x5d3, 0x5cf, 0x5cb, 0x5c6, 0x5c2,
-	0x5be, 0x5ba, 0x5b6, 0x5b2, 0x5ae, 0x5aa, 0x5a6, 0x5a2, 0x59e, 0x59a,
-	0x596, 0x592, 0x58e, 0x58a, 0x586, 0x583, 0x57f, 0x57b, 0x577, 0x574,
-	0x570, 0x56c, 0x568, 0x565, 0x561, 0x55e, 0x55a, 0x556, 0x553, 0x54f,
-	0x54c, 0x548, 0x545, 0x541, 0x53e, 0x53a, 0x537, 0x534, 0x530, 0x52d,
-	0x52a, 0x526, 0x523, 0x520, 0x51c, 0x519, 0x516, 0x513, 0x50f, 0x50c,
-	0x509, 0x506, 0x503, 0x500, 0x4fc, 0x4f9, 0x4f6, 0x4f3, 0x4f0, 0x4ed,
-	0x4ea, 0x4e7, 0x4e4, 0x4e1, 0x4de, 0x4db, 0x4d8, 0x4d5, 0x4d2, 0x4cf,
-	0x4cc, 0x4ca, 0x4c7, 0x4c4, 0x4c1, 0x4be, 0x4bb, 0x4b9, 0x4b6, 0x4b3,
-	0x4b0, 0x4ad, 0x4ab, 0x4a8, 0x4a5, 0x4a3, 0x4a0, 0x49d, 0x49b, 0x498,
-	0x495, 0x493, 0x490, 0x48d, 0x48b, 0x488, 0x486, 0x483, 0x481, 0x47e,
-	0x47c, 0x479, 0x477, 0x474, 0x472, 0x46f, 0x46d, 0x46a, 0x468, 0x465,
-	0x463, 0x461, 0x45e, 0x45c, 0x459, 0x457, 0x455, 0x452, 0x450, 0x44e,
-	0x44b, 0x449, 0x447, 0x444, 0x442, 0x440, 0x43e, 0x43b, 0x439, 0x437,
-	0x435, 0x432, 0x430, 0x42e, 0x42c, 0x42a, 0x428, 0x425, 0x423, 0x421,
-	0x41f, 0x41d, 0x41b, 0x419, 0x417, 0x414, 0x412, 0x410, 0x40e, 0x40c,
-	0x40a, 0x408, 0x406, 0x404, 0x402, 0x400
-	};
-	*/
-
+	uint2 v4=0, hi = 0, lo = 0, v3 = 0, ehat = 0, v2 = 0, v1 = 0, d40 = 0, d63 = 0;
+	uint2 cstmp = 0;
+	uint v0 = 0, d0 = 0, d9 = 0;
 	d0 = d.x & 1;//[0,2)
 	d9 = d.y >> 23;// [256,512)
 	cstmp.x = 1; cstmp.y = 0;
@@ -489,7 +441,6 @@ uint2 reciprocal_word(uint2 d)
 	cstmp.x = d0; cstmp.y = 0;
 	d63 = uladd(u2shr(d, 1), cstmp);// (2^62,2^63]
 	v0 = CreateTable(d9 - 256);
-	//v0 = table[d9 - 256];
 	//v0は高々2047
 	cstmp.x = v0 * v0; cstmp.y = 0;
 	uint2 tmp = u2mymullo128(cstmp, d40);
@@ -527,19 +478,14 @@ uint4 div2by1(uint2 u1, uint2 u0, uint2 d, uint2 v)
 
 	uint3 out3 = uladdofw(q0, u0);
 	q0 = out3.xy;
-	//q0 = q0 + u0;
 	cstmp.x = out3.z + 1; cstmp.y = 0;
 	q1 = uladd(uladd(q1, u1), cstmp);
-	//q1++;
 	u2r = ulsub(u0, u2mymullo128(q1, d));
-	//*r = u0 - mymullo128(q1, d);
 	if (gt(u2r, q0)) {
 		cstmp.x = 1; cstmp.y = 0;
 		q1 = ulsub(q1, cstmp);
 		u2r = uladd(u2r, d);
 	}
-	//q1 = (*r > q0) ? q1 - 1 : q1;
-	//*r = (*r > q0) ? *r + d : *r;
 	if (ge(u2r, d)) {
 		cstmp.x = 1; cstmp.y = 0;
 		q1 = uladd(q1, cstmp);
@@ -548,16 +494,13 @@ uint4 div2by1(uint2 u1, uint2 u0, uint2 d, uint2 v)
 
 	out4.xy = q1;
 	out4.zw = u2r;
-	//*r=u2toul(u2r);
-	return out4;//u2toul(q1);
+	return out4;
 }
-
 
 /* Compute x * y mod n, where n << s is normalized and
    v is the approximate reciprocal of n << s. */
 uint2 mulmodn(uint2 x, uint2 y, uint2 n, int s, uint2 v)
 {
-	//ulong hi, lo, r;
 	uint2 hi, lo;
 	uint4 out4 = u2mymul128(x, y);
 	lo = out4.xy;
@@ -573,35 +516,26 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 	uint2 res, v;
 	int i, l, s;
 	s = clz2(n);
-
 	v = reciprocal_word(u2shl(n, s));
-
 	res = x;
 	l = 63 - clz2(p);
+	
+	i = l - 1;
 
-	int ttt = 0;
 
-	for (i = l - 1; i >= 0; i--) {
+	for (int ttt = 0; ttt < 64; ttt++) 
+	{
+		if (i < 0) break;
 		res = mulmodn(res, res, n, s, v);
 		uint2 tmp = u2shr(p, i);
 		if (tmp.x % 2 == 1) {
 			res = mulmodn(res, x, n, s, v);
 		}
-		ttt++;
-		if (ttt==64)break;
+		i--;
 	}
+
 	return res;
-	
-	
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -621,53 +555,39 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 //モンゴメリ乗算、最後の割り算はdiv2by1のソースをネットのからコピペしてやっている
 void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 {
-//__global ulong* bigSum,
-//const ulong offset,
-//const ulong d,
-//const ulong k_max,
-//const long numesign,
-//const ulong den0,
-//const ulong den1) {
-	uint gsize = 4096*256;
+	//uint gsize = 4096 *256;
 	uint2 k = offset;
 	k.x += idx;
 	if (k.x < idx)k.y++;
 	int revflg;
 	revflg = ((numesign + k.x % 2) % 2);
-
-	uint2 dnm;// = den0 * k + den1;//分母
-	uint2 a10; a10.x = den0; a10.y = 0;
-	uint2 b10; b10.x = k.x & 0x0000ffff; b10.y = k.x>> 16;
+	uint2 dnm = offset_mul_den0;
+	uint valtmp = den0 * idx + den1;
+	dnm.x += valtmp;
+	if (dnm.x < valtmp)dnm.y++;
 	uint2 cstmp;
-	dnm = mymul64(a10, b10);
-	dnm.y += k.y * den0;
-	dnm.x += den1;//
-	dnm.y += (dnm.x < den1);
-
-	uint2 dnmadd;// = gsize * den0;
+	uint2 dnmadd;
 	dnmadd.x = gsize * den0; dnmadd.y = 0;
-
 	uint2 nmr;//分子
 
-	//double-double精度を2つ使って192bitに結果を収める。上のループと比べると試行回数は１回なので少し非効率でも大丈夫
 	uint2 ulsum0_ = bigSum[idx * 3 + 2];//最上位桁
 	uint2 ulsum1_ = bigSum[idx * 3 + 1];//中間
 	uint2 ulsum2_ = bigSum[idx * 3 + 0];//最下位桁
 	uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;
-
+	uint2 u[4];
+	uint2 q[4];
+	
 	for (; lt(k, k_max);)
 	{
 		cstmp.x = 1024; cstmp.y = 0;
 		nmr = powmodn(cstmp, ulsub(d,k), dnm);
-
 		//k^-1のところ。答えを適宜反転
 		if (revflg==1) {
 			nmr = ulsub(dnm, nmr);
 		}
 		
-		uint2 u[4];
 		u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmr;
-		uint2 q[4];
+		q[0] = 0; q[1] = 0; q[2] = 0; q[3] = 0;
 		//divnby1(4, u, dnm, q);
 		//↑ではコンパイルエラーになるのでインライン展開
 		//void divnby1(int n, const uint2* u, uint2 d, uint2* q)
@@ -679,6 +599,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		uint2 d_dmy = u2shl(dnm, l);
 		// Compute the reciprocal. 
 		v = reciprocal_word(d_dmy);
+		
 		// Perform the division. 
 		kk = u2shr(u[4 - 1], 64 - l);
 		for (i = 4 - 1; i >= 1; i--) {
@@ -705,10 +626,9 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		//forに書いていたやつ
 		k.x += gsize;
 		if (k.x < gsize) k.y++;
-
 	}
+	
 	//長いループ終了
-
 
 	//繰り上がり
 	ulsum2_.y += up0;
@@ -720,7 +640,6 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 	ulsum0_.x += up3;
 	up4 += (ulsum0_.x < up3);
 	ulsum0_.y += up4;
-
 	
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
@@ -743,6 +662,7 @@ void Zeroset(uint idx : SV_DispatchThreadID)
 //リダクション256→64にまとめ。A→Bに書き込み
 [numthreads(64, 1, 1)]
 void SumGlobal(uint idx : SV_DispatchThreadID) {
+	/*
 	uint2 ulsum0_ = A[(idx * 4 + 0) * 3 + 2];//最上位桁
 	uint2 ulsum1_ = A[(idx * 4 + 0) * 3 + 1];//中間
 	uint2 ulsum2_ = A[(idx * 4 + 0) * 3 + 0];//最下位桁
@@ -765,7 +685,6 @@ void SumGlobal(uint idx : SV_DispatchThreadID) {
 		up4 += (ulsum0_.x < q[2].x);//最上位桁
 	}
 
-
 	//繰り上がり
 	ulsum2_.y += up0;
 	up1 += (ulsum2_.y < up0);
@@ -780,5 +699,5 @@ void SumGlobal(uint idx : SV_DispatchThreadID) {
 	B[idx * 3 + 0] = ulsum2_;
 	B[idx * 3 + 1] = ulsum1_;
 	B[idx * 3 + 2] = ulsum0_;
-	return;
+	*/
 }

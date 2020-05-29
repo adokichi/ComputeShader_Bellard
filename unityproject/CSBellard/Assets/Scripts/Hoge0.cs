@@ -2,21 +2,24 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
 public class Hoge0 : MonoBehaviour
 {
     public DivNBy1 divNBy1;
 
     public ComputeShader shader;
 
-    int gridn = 4096;
+    int gridn = 2048;
     int blockn = 256;
+
+    ulong debug0 = 0;
+    ulong cpuoffset = 399999999;
 
     ComputeBuffer A;
     ComputeBuffer B;
     ComputeBuffer bigSum;
     ComputeBuffer lastreslut;
     ComputeBuffer constTable;
+    ComputeBuffer dbg;
     int k2,kernelSum,kernelZeroset;
     ulong d, offset, k_max, k_max_end;
     int[] inputint2;
@@ -38,10 +41,8 @@ public class Hoge0 : MonoBehaviour
     }
 
     void parameset() {
-
-        d = 399999999;
-        //d =      799999999999999;
-        offset = 0;
+        offset = cpuoffset * debug0+256;//かならず256からはじめるよう
+        if (d < offset) offset = d;
         k_max = offset;
         k_max_end = d;
 
@@ -59,11 +60,13 @@ public class Hoge0 : MonoBehaviour
     void Calc()
     {
         offset = k_max;
-        k_max = k_max + (ulong)gridn * (ulong)blockn * 8;
+        k_max = k_max + (ulong)gridn * (ulong)blockn * 4;
         if (k_max > k_max_end) k_max = k_max_end;
 
         ulongtouint2(offset, inputint2);
         shader.SetInts("offset", inputint2);
+        ulongtouint2(offset * (ulong)den0[step], inputint2);
+        shader.SetInts("offset_mul_den0", inputint2);
         ulongtouint2(k_max, inputint2);
         shader.SetInts("k_max", inputint2);
 
@@ -77,11 +80,11 @@ public class Hoge0 : MonoBehaviour
     {
         divNBy1 = GetComponent<DivNBy1>();
 
-
-        A = new ComputeBuffer(gridn * blockn * 3 / 4, sizeof(ulong));
-        B = new ComputeBuffer(gridn * blockn * 3 / 4, sizeof(ulong));
+        A = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
+        B = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
         bigSum = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
         constTable = new ComputeBuffer(256, sizeof(uint));
+        dbg = new ComputeBuffer(2, sizeof(ulong));
 
         k2 = shader.FindKernel("Sglobal64mtg_192_Refresh");
         kernelSum = shader.FindKernel("SumGlobal");
@@ -119,9 +122,12 @@ public class Hoge0 : MonoBehaviour
         //引数をセット
         shader.SetBuffer(k2, "bigSum", bigSum);
         shader.SetBuffer(k2, "ConstTable", constTable);
+        shader.SetBuffer(k2, "dbg", dbg);
         shader.SetBuffer(kernelZeroset, "bigSum", bigSum);
+        shader.SetInt("gsize", gridn * blockn);
 
-
+        //d = 39999999;
+        d = cpuoffset;
         step = 0;
         parameset();
 
@@ -132,22 +138,22 @@ public class Hoge0 : MonoBehaviour
     }
 
 
-
-
     // Update is called once per frame
     void Update()
     {
         if (step == 7) {
+            
             Debug.Log("anser");
             Debug.Log(ans0.ToString("x16"));
             Debug.Log(ans1.ToString("x16"));
             Debug.Log(ans2.ToString("x16"));
+            
             step++;
-
             //解放
             A.Release();
             B.Release();
             bigSum.Release();
+            constTable.Release();
         }
 
         if (step < 7)
@@ -173,6 +179,7 @@ public class Hoge0 : MonoBehaviour
 
     //これでlastreslutに結果がまとめられる
     (ulong,ulong ,ulong) ReducAB() {
+        /*
         shader.SetBuffer(kernelSum, "A", bigSum);
         shader.SetBuffer(kernelSum, "B", B);
         lastreslut = B;
@@ -196,62 +203,96 @@ public class Hoge0 : MonoBehaviour
             shader.Dispatch(kernelSum, igridn / 4, 1, 1);
             i++;
         }
+        */
 
         //igridn*64個のブロックに結果がある。1ブロック=ulong*3
-        ulong[] ulres = new ulong[igridn * 64 * 3];
-        lastreslut.GetData(ulres, 0, 0, igridn * 64 * 3);
+        //ulong[] ulres = new ulong[igridn * 64 * 3];
+
+        ulong[] ulres = new ulong[gridn * blockn * 3];
+        bigSum.GetData(ulres);//, 0, 0, igridn * 64 * 3
 
         ulong tmpans0 = 0, tmpans1 = 0, tmpans2 = 0;
-        for (int i = 0; i < igridn * 64; i++)
+        for (int i = 0; i < gridn * 256; i++)
         {
             divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, ulres[i * 3 + 0], ulres[i * 3 + 1], ulres[i * 3 + 2]);
         }
         return (tmpans0, tmpans1, tmpans2);
     }
 
+    //実は最初のk=0のときも計算している
     void Addlast(ulong tmpans0, ulong tmpans1,ulong tmpans2)
     {
         ulong dnm;
-        //d-k<0のときのを計算
+        ulong[] u = { 0, 0, 0, 0 };
+        ulong[] q = { 0, 0, 0, 0 };
+        //d-k<=0のときのを計算
         for (int i = 0; i < 31; i++) 
         {
             ulong k = d + (ulong)i;
             dnm = k * (ulong)den0[step] + (ulong)den1[step];
+            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = 0;
             int bsup = 192 - i * 10;
             if (bsup < 0) break;
-            ulong[] u = { 0, 0, 0, 0 };
-            ulong[] q = { 0, 0, 0, 0 };
             u[bsup / 64] = (ulong)1 << (bsup % 64);
-            //u[]
             divNBy1.divnby1(4, u, dnm, q);
-
 
             if ((k % 2 + (ulong)nmrsign[step]) % 2 == 1) 
             {
-                /*
-                q[0] = 18446744073709551615 - q[0];
-                q[1] = 18446744073709551615 - q[1];
-                q[2] = 18446744073709551615 - q[2];
-                */
                 q[0] = ~q[0];//bit反転は999999999-qしてるのとほぼ同じ
                 q[1] = ~q[1];
                 q[2] = ~q[2];
                 divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
             }
             divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0],q[1],q[2]);
-
         }
+
+
+        //k=0のとき～k=255のとき
+        ulong nmrx;
+        ulong nmrp;
+        for (ulong iii = 0; iii < cpuoffset * debug0+256; iii++)
+        {
+            if (d <= iii) break;
+            nmrx = 1;
+            nmrp = 1024;
+            dnm = (ulong)den1[step]+ (ulong)den0[step]*iii;
+            
+            for (ulong dd = d-iii; dd != 0; dd /= 2)
+            { //べき剰余
+                if (dd % 2 == 1)
+                {
+                    nmrx = nmrx * nmrp % dnm;
+                }
+                nmrp = nmrp * nmrp % dnm;
+            }
+
+            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmrx;
+            divNBy1.divnby1(4, u, dnm, q);
+
+            if (((ulong)nmrsign[step]+iii) % 2 == 1)
+            {
+                q[0] = ~q[0];//bit反転は999999999-qしてるのとほぼ同じ
+                q[1] = ~q[1];
+                q[2] = ~q[2];
+                divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
+            }
+            divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0], q[1], q[2]);
+        }
+
 
         //分子をかける＝シフト
         divNBy1.ul3shift(ref tmpans0, ref tmpans1, ref tmpans2, nmr[step]);
         divNBy1.ul3add(ref ans0, ref ans1, ref ans2, tmpans0, tmpans1, tmpans2);
 
+        
         Debug.Log("step"+step);
         Debug.Log("time=" + (Time.time - starttime));
+        
         Debug.Log(tmpans0.ToString("x16"));
         Debug.Log(tmpans1.ToString("x16"));
         Debug.Log(tmpans2.ToString("x16"));
-        
     }
+
+
 
 }
