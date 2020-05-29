@@ -12,7 +12,7 @@ public class Hoge0 : MonoBehaviour
     int blockn = 256;
 
     ulong debug0 = 0;
-    ulong cpuoffset = 399999999;
+    ulong cpuoffset = 39999999;
 
     ComputeBuffer A;
     ComputeBuffer B;
