@@ -8,11 +8,11 @@ public class Hoge0 : MonoBehaviour
 
     public ComputeShader shader;
 
-    int gridn = 2048;
+    int gridn = 4096;
     int blockn = 256;
 
     ulong debug0 = 0;
-    ulong cpuoffset = 39999999;
+    ulong cpuoffset = 12799999999;
 
     ComputeBuffer A;
     ComputeBuffer B;
@@ -147,7 +147,7 @@ public class Hoge0 : MonoBehaviour
     void Calc()
     {
         offset = k_max;
-        k_max = k_max + (ulong)gridn * (ulong)blockn * 32;
+        k_max = k_max + (ulong)gridn * (ulong)blockn * 64;
         if (k_max > k_max_end) k_max = k_max_end;
 
         ulongtouint2(offset, inputint2);
@@ -248,7 +248,7 @@ public class Hoge0 : MonoBehaviour
         bigSum.GetData(ulres);//, 0, 0, igridn * 64 * 3
 
         ulong tmpans0 = 0, tmpans1 = 0, tmpans2 = 0;
-        for (int i = 0; i < gridn * 256; i++)
+        for (int i = 0; i < gridn * blockn; i++)
         {
             divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, ulres[i * 3 + 0], ulres[i * 3 + 1], ulres[i * 3 + 2]);
         }
