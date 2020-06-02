@@ -10,7 +10,6 @@ public class FPSTextUI : MonoBehaviour
     void Start()
     {
         text = this.GetComponent<Text>();
-        Debug.Log(SystemInfo.graphicsDeviceName);
         cnt = 0;
         ftime = Time.time - 1.0f;
     }

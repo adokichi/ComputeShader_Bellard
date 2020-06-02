@@ -535,38 +535,6 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 		i--;
 	}
 	
-	
-	
-	/*
-	res.x = 1; res.y = 0;
-	uint2 rr; rr.x = 1024; rr.y = 0;
-	for (int ttt = 0; ttt < 32; ttt++)
-	{
-		if (p.x == 0) {
-			if (p.y == 0)break;
-		}
-		if (p.x & 1 == 1) {
-			res = mulmodn(res, rr, n, s, v);
-		}
-		rr = mulmodn(rr, rr, n, s, v);
-		p.x /= 2;
-		
-	}
-
-
-	for (int ttt = 0; ttt < 32; ttt++)
-	{
-		if (p.y == 0)break;
-		if (p.y & 1 == 1) {
-			res = mulmodn(res, rr, n, s, v);
-		}
-		rr = mulmodn(rr, rr, n, s, v);
-		p.y /= 2;
-		
-	}
-	*/
-	
-
 	return res;
 }
 

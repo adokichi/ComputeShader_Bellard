@@ -15,7 +15,7 @@ public class CatchLog : MonoBehaviour
     private bool autoScroll = true;
 
     [SerializeField, Tooltip("テキストの先頭に時刻を表示する")]
-    private bool useTimeStamp = true;
+    private bool useTimeStamp = false;
 
     [SerializeField, Tooltip("ログの種別に応じて色を付ける")]
     private bool coloredByLogType = true;
