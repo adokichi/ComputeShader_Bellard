@@ -8,7 +8,7 @@ public class Hoge0 : MonoBehaviour
     public ComputeShader shader;
 
     public int gridn = 1024;
-    int blockn = 256;
+    int blockn = 64;
     public ulong iterationsPerFrame;
 
     ulong debug0 = 0;
@@ -200,6 +200,7 @@ public class Hoge0 : MonoBehaviour
             step++;
             //解放
             bigSum.Release();
+            GetComponent<Button_BenchStart>().Setinteract();
         }
 
         if (step < 7)

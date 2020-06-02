@@ -550,7 +550,7 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 
 
 //dispatchでは256*1*1でやっているので合計256*256thread
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 //メイン計算部分モンゴメリ乗算版64bit、2つのdouble-double(105bit*2)を64bit整数*3にまとめる
 //というバージョンをさらに改造してリフレッシュしたやつ
 //モンゴメリ乗算、最後の割り算はdiv2by1のソースをネットのからコピペしてやっている
@@ -655,7 +655,7 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 }
 
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void Zeroset(uint idx : SV_DispatchThreadID)
 {
 	bigSum[idx * 3 + 0] = 0;

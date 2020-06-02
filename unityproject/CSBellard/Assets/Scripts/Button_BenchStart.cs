@@ -19,6 +19,7 @@ public class Button_BenchStart : MonoBehaviour
         int groupsize_ = GameObject.Find("Dropdown_GroupSize").GetComponent<Dropdown>().value;
         int iterpf_ = GameObject.Find("Dropdown_Ryuudo").GetComponent<Dropdown>().value;
 
+        
         ulong digits=0;
         switch (digits_)
         {
@@ -67,5 +68,13 @@ public class Button_BenchStart : MonoBehaviour
         hoge.gridn = 1 << (groupsize_ + 2);
         hoge.iterationsPerFrame= 1UL << (iterpf_);
         hoge.ButtonPush(((digits - 1) * 2 - 3) / 5);
+
+
+        GameObject.Find("Button_BenchStart").GetComponent<Button>().interactable = false;
     }
+
+    public void Setinteract() {
+        GameObject.Find("Button_BenchStart").GetComponent<Button>().interactable = true;
+    }
+
 }
