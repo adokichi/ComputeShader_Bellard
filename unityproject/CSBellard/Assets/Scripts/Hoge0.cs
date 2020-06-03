@@ -211,10 +211,14 @@ public class Hoge0 : MonoBehaviour
                 var (ul0, ul1, ul2) = ReducAB();//GPU→CPUで結果を1つにまとめる
                 Debug.Log("step" + step + ": time=" + (seconds - starttime + Time.time - inframetime));
 
-                Debug.Log("--------------------GPU結果--------------------");
-                DebugAns012(ul0, ul1, ul2);
-                Debug.Log("");
+                //Debug.Log("--------------------GPU結果--------------------");
+                //DebugAns012(ul0, ul1, ul2);
+                //Debug.Log("");
                 (ul0, ul1, ul2) = Addlast(ul0, ul1, ul2);//端数足してビットシフトで整ええる
+
+                //Debug.Log("--------------------CPU結果--------------------");
+                //DebugAns012(ul0, ul1, ul2);
+
                 (ul0, ul1, ul2) = Mulnmr(ul0, ul1, ul2);//分子をかける
                 DebugAns012(ul0, ul1, ul2);
                 step++;

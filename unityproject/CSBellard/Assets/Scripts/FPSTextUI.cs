@@ -12,6 +12,7 @@ public class FPSTextUI : MonoBehaviour
         text = this.GetComponent<Text>();
         cnt = 0;
         ftime = Time.time - 1.0f;
+        Debug.Log(SystemInfo.graphicsDeviceType);
     }
 
     // Update is called once per frame
