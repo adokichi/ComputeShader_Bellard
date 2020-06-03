@@ -194,7 +194,6 @@ public class Hoge0 : MonoBehaviour
         if (step == 7) {
             Debug.Log("--------------------PI value output--------------------");
             DebugAns012(ans0, ans1, ans2);
-            
             Debug.Log("Calculation Time(sec):"+(seconds - step0starttime));
             Debug.Log("-------------------------------------------------------");
             step++;
@@ -209,8 +208,15 @@ public class Hoge0 : MonoBehaviour
             //そのstepで最後まで計算したら
             if (k_max == k_max_end)
             {
-                var (ul0,ul1,ul2)=ReducAB();//GPU→CPUで結果を1つにまとめる
-                Addlast(ul0, ul1, ul2);//端数足してビットシフトで整ええる
+                var (ul0, ul1, ul2) = ReducAB();//GPU→CPUで結果を1つにまとめる
+                Debug.Log("step" + step + ": time=" + (seconds - starttime + Time.time - inframetime));
+
+                Debug.Log("--------------------GPU結果--------------------");
+                DebugAns012(ul0, ul1, ul2);
+                Debug.Log("");
+                (ul0, ul1, ul2) = Addlast(ul0, ul1, ul2);//端数足してビットシフトで整ええる
+                (ul0, ul1, ul2) = Mulnmr(ul0, ul1, ul2);//分子をかける
+                DebugAns012(ul0, ul1, ul2);
                 step++;
                 if (step < 7)
                 {
@@ -277,7 +283,7 @@ public class Hoge0 : MonoBehaviour
     }
 
     //実は最初のk=0のときも計算している
-    void Addlast(ulong tmpans0, ulong tmpans1,ulong tmpans2)
+    (ulong, ulong, ulong) Addlast(ulong tmpans0, ulong tmpans1,ulong tmpans2)
     {
         ulong dnm;
         ulong[] u = { 0, 0, 0, 0 };
@@ -336,12 +342,16 @@ public class Hoge0 : MonoBehaviour
             divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0], q[1], q[2]);
         }
 
+        return (tmpans0, tmpans1, tmpans2);
+    }
+
+
+    (ulong, ulong, ulong) Mulnmr(ulong tmpans0, ulong tmpans1, ulong tmpans2)
+    {
         //分子をかける＝シフト
         divNBy1.ul3shift(ref tmpans0, ref tmpans1, ref tmpans2, nmr[step]);
         divNBy1.ul3add(ref ans0, ref ans1, ref ans2, tmpans0, tmpans1, tmpans2);
-
-        Debug.Log("step"+step+ ": time=" + (seconds - starttime + Time.time - inframetime));
-        DebugAns012(tmpans0, tmpans1, tmpans2);
+        return (tmpans0, tmpans1, tmpans2);
     }
 
 
