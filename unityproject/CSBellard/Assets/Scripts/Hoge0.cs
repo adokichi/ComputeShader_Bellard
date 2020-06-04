@@ -170,7 +170,7 @@ public class Hoge0 : MonoBehaviour
         if (step == 7) {
             Debug.Log("--------------------PI value output--------------------");
             DebugAns012(ans0, ans1, ans2);
-            Debug.Log("GPU Time(sec):" + (seconds - step0starttime));
+            Debug.Log("Total Time(sec):" + (seconds - step0starttime));
             Debug.Log("-------------------------------------------------------");
             step++;
             //解放
@@ -189,7 +189,7 @@ public class Hoge0 : MonoBehaviour
                 var (ul0, ul1, ul2) = Addlast();//端数の計算
                 ulong[] ulres = GPUtoCPU();//GPU→CPUで結果を取得し
                 //GPU時間はここで終了
-                Debug.Log("step" + step + ": time=" + (seconds - starttime + Time.time - inframetime));
+                Debug.Log("step" + step + ": GPU time=" + (seconds - starttime + Time.time - inframetime));
                 var (ul3, ul4, ul5) = Reduction(ulres);
                 //1つにまとめ
 
