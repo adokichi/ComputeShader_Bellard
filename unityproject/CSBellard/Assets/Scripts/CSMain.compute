@@ -1,12 +1,9 @@
-﻿#pragma kernel Sglobal64mtg_192_Refresh
-#pragma kernel SumGlobal
+﻿#pragma kernel Mainloop
 #pragma kernel Zeroset
 //Read and Write
-RWStructuredBuffer<uint2> A;
-RWStructuredBuffer<uint2> B;
 RWStructuredBuffer<uint2> bigSum;
+//Read Only
 StructuredBuffer<uint> ConstTable;
-RWStructuredBuffer<uint2> dbg;
 
 uint2 offset_mul_den0;
 uint2 offset;
@@ -16,8 +13,6 @@ uint numesign;
 uint den0;
 uint den1;
 uint gsize;
-
-
 
 //(a1a0)*(b1b0)
 //32bit*32bit=64bit
@@ -39,7 +34,6 @@ uint2 mymul64(uint2 a10, uint2 b10) {
 	outhilo.y = ab11 + (tmp >> 16);
 	return outhilo;
 }
-
 
 
 ///////////////////////////////////uint2バージョン
@@ -274,7 +268,7 @@ uint2 u2mymullo128(uint2 a, uint2 b) {
 }
 
 /* Right-shift that also handles the 64 case. */
-uint2 u2shr(uint2 x, int n)
+uint2 u2shr(uint2 x, uint n)
 {
 	uint2 outd;
 	if (n >= 32) {
@@ -288,7 +282,7 @@ uint2 u2shr(uint2 x, int n)
 	}
 	return outd;
 }
-uint2 u2shl(uint2 x, int n)
+uint2 u2shl(uint2 x, uint n)
 {
 	uint2 outd;
 	if (n >= 32) {
@@ -309,7 +303,7 @@ uint2 u2shl(uint2 x, int n)
 
 
 
-int clz2(uint2 x2)
+uint clz2(uint2 x2)
 {
 	uint x;
 	if (x2.y != 0) {
@@ -319,7 +313,7 @@ int clz2(uint2 x2)
 		x = x2.x;
 	}
 
-	int n = 16, nn = 8;
+	uint n = 16, nn = 8;
 	for (; nn > 0; nn >>= 1)
 	{
 		if ((1 << n) <= x) {
@@ -499,7 +493,7 @@ uint4 div2by1(uint2 u1, uint2 u0, uint2 d, uint2 v)
 
 /* Compute x * y mod n, where n << s is normalized and
    v is the approximate reciprocal of n << s. */
-uint2 mulmodn(uint2 x, uint2 y, uint2 n, int s, uint2 v)
+uint2 mulmodn(uint2 x, uint2 y, uint2 n, uint s, uint2 v)
 {
 	uint2 hi, lo;
 	uint4 out4 = u2mymul128(x, y);
@@ -514,7 +508,7 @@ uint2 mulmodn(uint2 x, uint2 y, uint2 n, int s, uint2 v)
 uint2 powmodn(uint2 x, uint2 p, uint2 n)
 {
 	uint2 res, v;
-	int i, l, s;
+	uint i, l, s;
 	s = clz2(n);
 	v = reciprocal_word(u2shl(n, s));
 	
@@ -524,9 +518,9 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 	res = x;
 	l = 63 - clz2(p);
 	i = l - 1;
-	for (int ttt = 0; ttt < 64; ttt++) 
+	for (uint ttt = 0; ttt < 64; ttt++) 
 	{
-		if (i < 0) break;
+		if (i > 655360) break;
 		res = mulmodn(res, res, n, s, v);
 		uint2 tmp = u2shr(p, i);
 		if (tmp.x % 2 == 1) {
@@ -549,18 +543,17 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 
 
 
-//dispatchでは256*1*1でやっているので合計256*256thread
 [numthreads(64, 1, 1)]
-//メイン計算部分モンゴメリ乗算版64bit、2つのdouble-double(105bit*2)を64bit整数*3にまとめる
-//というバージョンをさらに改造してリフレッシュしたやつ
-//モンゴメリ乗算、最後の割り算はdiv2by1のソースをネットのからコピペしてやっている
-void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
+//メイン計算部分
+//べき乗、整数除算のループ
+//除数が32bit,64bitともに対応。ただしexpmodは除数が1024以下でバグる
+void Mainloop(uint idx : SV_DispatchThreadID)
 {
 	//uint gsize = 4096 *256;
 	uint2 k = offset;
 	k.x += idx;
 	if (k.x < idx)k.y++;
-	int revflg;
+	uint revflg;
 	revflg = ((numesign + k.x % 2) % 2);
 	uint2 dnm = offset_mul_den0;
 	uint valtmp = den0 * idx + den1;
@@ -589,19 +582,12 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		
 		u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmr;
 		q[0] = 0; q[1] = 0; q[2] = 0; q[3] = 0;
-		/*
-				int l = clz2(dnm);
-				uint2 d_dmy = u2shl(dnm, l);
-				uint2 v = reciprocal_word(d_dmy);
-				q[0] = v; q[1] = v; q[2] = 3; q[3] = 0;
-		*/
-		
 		//divnby1(4, u, dnm, q);
 		//↑ではコンパイルエラーになるのでインライン展開
 		//void divnby1(int n, const uint2* u, uint2 d, uint2* q)
 		uint2 v, kk, ui;
 		uint4 out4;
-		int l, i;
+		uint l, i;
 		// Normalize d, storing the shift amount in l. 
 		l = clz2(dnm);
 		uint2 d_dmy = u2shl(dnm, l);
@@ -609,17 +595,25 @@ void Sglobal64mtg_192_Refresh(uint idx : SV_DispatchThreadID)
 		v = reciprocal_word(d_dmy);
 		
 		// Perform the division. 
-		kk = u2shr(u[4 - 1], 64 - l);
-		for (i = 4 - 1; i >= 1; i--) {
-			ui = u2shl(u[i], l) | u2shr(u[i - 1], 64 - l);
+		kk = u2shr(u[3], 64 - l);
+		
+			ui = u2shl(u[3], l);//もともとforループだったところを手動で展開
 			out4 = div2by1(kk, ui, d_dmy, v);
-			q[i] = out4.xy;
+			q[3] = out4.xy;
 			kk = out4.zw;
-		}
+			
+			out4 = div2by1(kk, 0, d_dmy, v);
+			q[2] = out4.xy;
+			kk = out4.zw;
 
-		out4 = div2by1(kk, u2shl(u[0], l), d_dmy, v);
+			out4 = div2by1(kk, 0, d_dmy, v);
+			q[1] = out4.xy;
+			kk = out4.zw;
+		
+		out4 = div2by1(kk, 0, d_dmy, v);
 		q[0] = out4.xy;
 		//ここまで divnby1
+		
 		
 
 		ulsum2_ += q[0];
@@ -661,50 +655,4 @@ void Zeroset(uint idx : SV_DispatchThreadID)
 	bigSum[idx * 3 + 0] = 0;
 	bigSum[idx * 3 + 1] = 0;
 	bigSum[idx * 3 + 2] = 0;
-}
-
-
-
-
-//リダクション256→64にまとめ。A→Bに書き込み
-[numthreads(64, 1, 1)]
-void SumGlobal(uint idx : SV_DispatchThreadID) {
-	/*
-	uint2 ulsum0_ = A[(idx * 4 + 0) * 3 + 2];//最上位桁
-	uint2 ulsum1_ = A[(idx * 4 + 0) * 3 + 1];//中間
-	uint2 ulsum2_ = A[(idx * 4 + 0) * 3 + 0];//最下位桁
-	uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;
-
-	uint2 q[3];
-
-	for (int i = 1; i < 4; i++) 
-	{
-		q[2] = A[(idx * 4 + i) * 3 + 2];//最上位桁
-		q[1] = A[(idx * 4 + i) * 3 + 1];//中間
-		q[0] = A[(idx * 4 + i) * 3 + 0];//最下位桁
-		ulsum2_ += q[0];
-		ulsum1_ += q[1];
-		ulsum0_ += q[2];
-		up0 += (ulsum2_.x < q[0].x);
-		up1 += (ulsum2_.y < q[0].y);
-		up2 += (ulsum1_.x < q[1].x);
-		up3 += (ulsum1_.y < q[1].y);
-		up4 += (ulsum0_.x < q[2].x);//最上位桁
-	}
-
-	//繰り上がり
-	ulsum2_.y += up0;
-	up1 += (ulsum2_.y < up0);
-	ulsum1_.x += up1;
-	up2 += (ulsum1_.x < up1);
-	ulsum1_.y += up2;
-	up3 += (ulsum1_.y < up2);
-	ulsum0_.x += up3;
-	up4 += (ulsum0_.x < up3);
-	ulsum0_.y += up4;
-
-	B[idx * 3 + 0] = ulsum2_;
-	B[idx * 3 + 1] = ulsum1_;
-	B[idx * 3 + 2] = ulsum0_;
-	*/
 }

@@ -8,21 +8,15 @@ public class Hoge0 : MonoBehaviour
     public ComputeShader shader;
 
     public int gridn = 1024;
-    int blockn = 64;
+    int blockn = 64;//ここを変えたときはcompute shader側も変えないといけない
     public ulong iterationsPerFrame;
 
     ulong debug0 = 0;
-    //ulong cpuoffset = 12799999999;
 
-    ComputeBuffer A;
-    ComputeBuffer B;
     ComputeBuffer bigSum;
-    ComputeBuffer lastreslut;
     ComputeBuffer constTable;
-    ComputeBuffer dbg;
-    int k2,kernelSum,kernelZeroset;
+    int kernelMain, kernelZeroset;
     ulong d, offset, k_max, k_max_end;
-    int[] inputint2;
 
     public int step;//式0-6のうちどれを計算しているか
     int[] nmr = { 5, 0, 8, 6, 2, 2, 0 };//Bellard式の分子が2の何乗か
@@ -37,25 +31,20 @@ public class Hoge0 : MonoBehaviour
     double inframetime;
 
 
-
-    void ulongtouint2(ulong a,int[] b) {
+    int[] ulongtouint2(ulong a) {
+        int[] b = new int[2];
         b[0] = (int)(a % (ulong)4294967296);
         b[1] = (int)(a / (ulong)4294967296);
+        return b;
     }
 
 
     void Start()
     {
         divNBy1 = GetComponent<DivNBy1>();
-
-        //A = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
-        //B = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
-        //bigSum = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));
         constTable = new ComputeBuffer(256, sizeof(uint));
-        //dbg = new ComputeBuffer(2, sizeof(ulong));
 
-        k2 = shader.FindKernel("Sglobal64mtg_192_Refresh");
-        kernelSum = shader.FindKernel("SumGlobal");//バグったので使ってない
+        kernelMain = shader.FindKernel("Mainloop");
         kernelZeroset = shader.FindKernel("Zeroset");
 
         //データセット
@@ -88,18 +77,10 @@ public class Hoge0 : MonoBehaviour
         constTable.SetData(host_consttable);
 
         //引数をセット
-        
-        shader.SetBuffer(k2, "ConstTable", constTable);
-        //shader.SetBuffer(k2, "dbg", dbg);
-        //shader.SetBuffer(k2, "bigSum", bigSum);
-        //shader.SetBuffer(kernelZeroset, "bigSum", bigSum);
-        //shader.SetInt("gsize", gridn * blockn);
 
-        d = 39999999;
-        
+        shader.SetBuffer(kernelMain, "ConstTable", constTable);
 
-        //step = 0;
-        //parameset();
+        //d = 39999999;
         ans0 = 0;
         ans1 = 0;
         ans2 = 0;
@@ -125,7 +106,7 @@ public class Hoge0 : MonoBehaviour
         ans1 = 0;
         ans2 = 0;
         bigSum = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));//計算ごとに初期化
-        shader.SetBuffer(k2, "bigSum", bigSum);
+        shader.SetBuffer(kernelMain, "bigSum", bigSum);
         shader.SetBuffer(kernelZeroset, "bigSum", bigSum);
         shader.SetInt("gsize", gridn * blockn);
         parameset();//毎ステップやるやつ
@@ -133,18 +114,15 @@ public class Hoge0 : MonoBehaviour
     }
 
 
+    //毎step前の処理
     void parameset()
     {
-        //offset = cpuoffset * debug0 + 256;//かならず256からはじめるよう
-        offset = 256;
+        offset = 256;//必ず256から始めるよう。1024のべき乗のところで間違った値がでるため
         if (d < offset) offset = d;
         k_max = offset;
         k_max_end = d;
 
-        inputint2 = new int[2];
-        ulongtouint2(d, inputint2);
-
-        shader.SetInts("d", inputint2);
+        shader.SetInts("d", ulongtouint2(d));
         shader.SetInt("numesign", nmrsign[step]);
         shader.SetInt("den0", den0[step]);
         shader.SetInt("den1", den1[step]);
@@ -154,27 +132,25 @@ public class Hoge0 : MonoBehaviour
     }
 
 
-    void DebugAns012(ulong a0,ulong a1,ulong a2) 
+    void DebugAns012(ulong a0, ulong a1, ulong a2)
     {
         string s = a2.ToString("x16") + a1.ToString("x16") + a0.ToString("x16");
         Debug.Log(s);
     }
 
+    //step内ループ。1CalcでもGPUコードがわでループがある
     void Calc()
     {
         offset = k_max;
         k_max = k_max + (ulong)gridn * (ulong)blockn * iterationsPerFrame;
         if (k_max > k_max_end) k_max = k_max_end;
 
-        ulongtouint2(offset, inputint2);
-        shader.SetInts("offset", inputint2);
-        ulongtouint2(offset * (ulong)den0[step], inputint2);
-        shader.SetInts("offset_mul_den0", inputint2);
-        ulongtouint2(k_max, inputint2);
-        shader.SetInts("k_max", inputint2);
+        shader.SetInts("offset", ulongtouint2(offset));
+        shader.SetInts("offset_mul_den0", ulongtouint2(offset * (ulong)den0[step]));
+        shader.SetInts("k_max", ulongtouint2(k_max));
 
         // GPUで計算
-        shader.Dispatch(k2, gridn, 1, 1);
+        shader.Dispatch(kernelMain, gridn, 1, 1);
     }
 
 
@@ -194,7 +170,7 @@ public class Hoge0 : MonoBehaviour
         if (step == 7) {
             Debug.Log("--------------------PI value output--------------------");
             DebugAns012(ans0, ans1, ans2);
-            Debug.Log("Calculation Time(sec):"+(seconds - step0starttime));
+            Debug.Log("GPU Time(sec):" + (seconds - step0starttime));
             Debug.Log("-------------------------------------------------------");
             step++;
             //解放
@@ -208,18 +184,19 @@ public class Hoge0 : MonoBehaviour
             //そのstepで最後まで計算したら
             if (k_max == k_max_end)
             {
-                var (ul0, ul1, ul2) = ReducAB();//GPU→CPUで結果を1つにまとめる
+                //GPU→CPUで結果を1つにまとめて出力したい
+                //ただGPU→CPUでブロッキングが発生するのでまずCPU負荷を先に処理
+                var (ul0, ul1, ul2) = Addlast();//端数の計算
+                ulong[] ulres = GPUtoCPU();//GPU→CPUで結果を取得し
+                //GPU時間はここで終了
                 Debug.Log("step" + step + ": time=" + (seconds - starttime + Time.time - inframetime));
+                var (ul3, ul4, ul5) = Reduction(ulres);
+                //1つにまとめ
 
-                //Debug.Log("--------------------GPU結果--------------------");
-                //DebugAns012(ul0, ul1, ul2);
-                //Debug.Log("");
-                (ul0, ul1, ul2) = Addlast(ul0, ul1, ul2);//端数足してビットシフトで整ええる
-
-                //Debug.Log("--------------------CPU結果--------------------");
-                //DebugAns012(ul0, ul1, ul2);
-
+                //CPU側端数結果とGPU結果を足して
+                divNBy1.ul3add(ref ul0, ref ul1, ref ul2, ul3, ul4, ul5);
                 (ul0, ul1, ul2) = Mulnmr(ul0, ul1, ul2);//分子をかける
+                //完成！
                 DebugAns012(ul0, ul1, ul2);
                 step++;
                 if (step < 7)
@@ -227,9 +204,7 @@ public class Hoge0 : MonoBehaviour
                     parameset();
                 }
             }
-
         }
-
     }
 
 
@@ -243,52 +218,32 @@ public class Hoge0 : MonoBehaviour
 
 
 
-
-    //これでlastreslutに結果がまとめられる
-    (ulong,ulong ,ulong) ReducAB() {
-        /*
-        shader.SetBuffer(kernelSum, "A", bigSum);
-        shader.SetBuffer(kernelSum, "B", B);
-        lastreslut = B;
-        shader.Dispatch(kernelSum, gridn, 1, 1);
-        int igridn = gridn;
-
-        for (int i = 0; igridn % 4 == 0; igridn /= 4)
-        {
-            if (i % 2 == 0)
-            {
-                shader.SetBuffer(kernelSum, "A", B);
-                shader.SetBuffer(kernelSum, "B", A);
-                lastreslut = A;
-            }
-            else
-            {
-                shader.SetBuffer(kernelSum, "A", A);
-                shader.SetBuffer(kernelSum, "B", B);
-                lastreslut = B;
-            }
-            shader.Dispatch(kernelSum, igridn / 4, 1, 1);
-            i++;
-        }
-        */
-
-        //igridn*64個のブロックに結果がある。1ブロック=ulong*3
-        //ulong[] ulres = new ulong[igridn * 64 * 3];
-
+    
+    
+    ulong[] GPUtoCPU() {
         ulong[] ulres = new ulong[gridn * blockn * 3];
         bigSum.GetData(ulres);//, 0, 0, igridn * 64 * 3
+        return ulres;
+    }
 
+    //これで結果がまとめられる
+    (ulong, ulong, ulong) Reduction(ulong[] ulres)
+    {
         ulong tmpans0 = 0, tmpans1 = 0, tmpans2 = 0;
-        for (int i = 0; i < gridn * blockn; i++)
+        for (int i = 0; i<gridn* blockn; i++)
         {
             divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, ulres[i * 3 + 0], ulres[i * 3 + 1], ulres[i * 3 + 2]);
         }
         return (tmpans0, tmpans1, tmpans2);
     }
 
-    //実は最初のk=0のときも計算している
-    (ulong, ulong, ulong) Addlast(ulong tmpans0, ulong tmpans1,ulong tmpans2)
+
+    //lastというが実は最初のk=0～255のときも計算している
+    (ulong, ulong, ulong) Addlast()
     {
+        ulong tmpans0 = 0;
+        ulong tmpans1 = 0;
+        ulong tmpans2 = 0;
         ulong dnm;
         ulong[] u = { 0, 0, 0, 0 };
         ulong[] q = { 0, 0, 0, 0 };
@@ -305,7 +260,7 @@ public class Hoge0 : MonoBehaviour
 
             if ((k % 2 + (ulong)nmrsign[step]) % 2 == 1) 
             {
-                q[0] = ~q[0];//bit反転は999999999-qしてるのとほぼ同じ
+                q[0] = ~q[0];//bit反転は999999999-qしてるのと同じ
                 q[1] = ~q[1];
                 q[2] = ~q[2];
                 divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
@@ -350,6 +305,7 @@ public class Hoge0 : MonoBehaviour
     }
 
 
+    //分子を考慮してシフト
     (ulong, ulong, ulong) Mulnmr(ulong tmpans0, ulong tmpans1, ulong tmpans2)
     {
         //分子をかける＝シフト
@@ -362,9 +318,6 @@ public class Hoge0 : MonoBehaviour
 
     private void OnDestroy()
     {
-        //A.Release();
-        //B.Release();
-        //bigSum.Release();
         constTable.Release();
     }
 }
