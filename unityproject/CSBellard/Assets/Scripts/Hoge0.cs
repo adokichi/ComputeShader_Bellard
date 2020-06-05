@@ -30,6 +30,8 @@ public class Hoge0 : MonoBehaviour
     double seconds;
     double inframetime;
 
+    ulong tempertureLoad = 20;//温度によって負荷をかえる
+
 
     int[] ulongtouint2(ulong a) {
         int[] b = new int[2];
@@ -138,11 +140,34 @@ public class Hoge0 : MonoBehaviour
         Debug.Log(s);
     }
 
+    public void TempSensorLoad(float ff) 
+    {
+        if (ff >= 45.0)
+        {
+            tempertureLoad = 0;
+        }
+
+        if (ff < 45.0)
+        {
+            tempertureLoad = 5;
+        }
+
+        if (ff < 39.0)
+        {
+            tempertureLoad = 10;
+        }
+
+        if (ff < 32.0) 
+        {
+            tempertureLoad = 20;
+        }
+    }
+
     //step内ループ。1CalcでもGPUコードがわでループがある
     void Calc()
     {
         offset = k_max;
-        k_max = k_max + (ulong)gridn * (ulong)blockn * iterationsPerFrame;
+        k_max = k_max + (ulong)gridn * (ulong)blockn * iterationsPerFrame * tempertureLoad / 20;
         if (k_max > k_max_end) k_max = k_max_end;
 
         shader.SetInts("offset", ulongtouint2(offset));

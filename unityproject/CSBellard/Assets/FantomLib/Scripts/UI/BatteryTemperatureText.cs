@@ -16,8 +16,8 @@ namespace FantomLib
 
         //Inspector Settings
         public Text targetText;                  //Display UI-Text                   //表示する UI-Text
-        public string format = "{0:F1} ℃";      //The display format (if it is 'F0', there are no decimal places)    //表示フォーマット（'F0' とすれば小数点以下は無くなる）
-
+        public string format = "{0:F2} ℃";      //The display format (if it is 'F0', there are no decimal places)    //表示フォーマット（'F0' とすれば小数点以下は無くなる）
+        public float tempp;
         //For work
         StringBuilder sb = new StringBuilder(8);
 
@@ -39,8 +39,11 @@ namespace FantomLib
             if (targetText != null)
             {
                 sb.Length = 0;
-                sb.AppendFormat(format, info.temperature);
+                float tempp = info.temperature;
+                sb.AppendFormat(format, tempp);
                 targetText.text = sb.ToString();
+
+                GameObject.Find("GameObject_CalcMain").GetComponent<Hoge0>().TempSensorLoad(tempp);
             }
         }
     }

@@ -1,2 +1,0 @@
-calculating 9 digits of Pi up to digit 1000000 without calculating preceding digits using G.
-
