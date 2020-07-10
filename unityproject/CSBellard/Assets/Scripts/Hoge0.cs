@@ -43,6 +43,8 @@ public class Hoge0 : MonoBehaviour
 
     void Start()
     {
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;//Androidでスリープにならないように
+
         divNBy1 = GetComponent<DivNBy1>();
         constTable = new ComputeBuffer(256, sizeof(uint));
 
@@ -152,9 +154,14 @@ public class Hoge0 : MonoBehaviour
             tempertureLoad = 5;
         }
 
-        if (ff < 39.0)
+        if (ff < 40.0)
         {
-            tempertureLoad = 10;
+            tempertureLoad = 9;
+        }
+
+        if (ff < 35.0)
+        {
+            tempertureLoad = 13;
         }
 
         if (ff < 32.0) 
