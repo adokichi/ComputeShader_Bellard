@@ -32,6 +32,9 @@ public class Hoge0 : MonoBehaviour
 
     ulong tempertureLoad = 20;//温度によって負荷をかえる
 
+    [SerializeField]
+    GameObject back_progress_bar;
+    BackProgressBar backProgressBar;
 
     int[] ulongtouint2(ulong a) {
         int[] b = new int[2];
@@ -46,6 +49,7 @@ public class Hoge0 : MonoBehaviour
         Screen.sleepTimeout = SleepTimeout.NeverSleep;//Androidでスリープにならないように
 
         divNBy1 = GetComponent<DivNBy1>();
+        backProgressBar = back_progress_bar.GetComponent<BackProgressBar>();
         constTable = new ComputeBuffer(256, sizeof(uint));
 
         kernelMain = shader.FindKernel("Mainloop");
@@ -89,7 +93,7 @@ public class Hoge0 : MonoBehaviour
         ans1 = 0;
         ans2 = 0;
         Debug.Log("Initialize end");
-        step = 90;
+        step = 90;//90は解析前の意味
         seconds = 0.0;
     }
 
@@ -183,6 +187,10 @@ public class Hoge0 : MonoBehaviour
 
         // GPUで計算
         shader.Dispatch(kernelMain, gridn, 1, 1);
+
+        //プログレスバー更新
+        backProgressBar.SetProgress(Mathf.Clamp((step * 1.0f + (1.0f * k_max / k_max_end)) / 7.0f, 0f, 1.0f));
+
     }
 
 
@@ -206,8 +214,7 @@ public class Hoge0 : MonoBehaviour
             Debug.Log("-------------------------------------------------------");
             step++;
             //解放
-            bigSum.Release();
-            GetComponent<Button_BenchStart>().Setinteract();
+            EndStep7();
         }
 
         if (step < 7)
@@ -240,6 +247,13 @@ public class Hoge0 : MonoBehaviour
     }
 
 
+
+    public void EndStep7()
+    {
+        step = 90;
+        bigSum.Release();
+        GetComponent<Button_BenchStart>().Setinteract();
+    }
 
 
 
