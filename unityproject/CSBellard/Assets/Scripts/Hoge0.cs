@@ -26,16 +26,19 @@ public class Hoge0 : MonoBehaviour
     int[] den1 = { 1, 3, 1, 3, 5, 7, 9 };//Bellard式の分母の端数項
     ulong ans0 = 0, ans1 = 0, ans2 = 0;
 
-    double starttime;
-    double step0starttime;
-    double seconds;
-    double inframetime;
+    int starttime;
+    int endtime;
 
     ulong tempertureLoad = 20;//温度によって負荷をかえる
 
     [SerializeField]
     GameObject back_progress_bar;
     BackProgressBar backProgressBar;
+
+    [SerializeField]
+    GameObject gPU_Benchmark_Scene;
+    [SerializeField]
+    GameObject gPU_Benchmark_Result;
 
     int[] ulongtouint2(ulong a) {
         int[] b = new int[2];
@@ -86,19 +89,14 @@ public class Hoge0 : MonoBehaviour
         constTable.SetData(host_consttable);
 
         //引数をセット
-
         shader.SetBuffer(kernelMain, "ConstTable", constTable);
 
-        //d = 39999999;
         ans0 = 0;
         ans1 = 0;
         ans2 = 0;
         Debug.Log("Initialize end");
         step = 90;//90は解析前の意味
-        seconds = 0.0;
     }
-
-
 
 
 
@@ -136,15 +134,23 @@ public class Hoge0 : MonoBehaviour
         shader.SetInt("den0", den0[step]);
         shader.SetInt("den1", den1[step]);
         shader.Dispatch(kernelZeroset, gridn, 1, 1);//0埋め
-        starttime = seconds;
-        if (step == 0) step0starttime = seconds;
+        
+        if (step == 0) starttime = Gettime();
     }
 
 
     void DebugAns012(ulong a0, ulong a1, ulong a2)
     {
         string s = a2.ToString("x16") + a1.ToString("x16") + a0.ToString("x16");
-        Debug.Log(s);
+        if (step < 7)
+        {
+            Debug.Log("step" + step + " : " + s);
+        }
+        else 
+        {
+            Debug.Log(s);
+        }
+        
     }
 
     public void TempSensorLoad(float ff) 
@@ -205,17 +211,19 @@ public class Hoge0 : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        seconds = seconds + (double)Time.deltaTime;
-        inframetime = Time.time;
-
         if (step == 7) {
+            endtime = Gettime();
             Debug.Log("--------------------PI value output--------------------");
             DebugAns012(ans0, ans1, ans2);
-            Debug.Log("Total Time(sec):" + (seconds - step0starttime));
+            var calctime = endtime - starttime;
+            if (calctime < 0) calctime += 60 * 60 * 1000 * 24;
+            Debug.Log("Total Time(msec):" + calctime);
             Debug.Log("-------------------------------------------------------");
             step++;
             //解放
             EndStep7();
+            gPU_Benchmark_Scene.SetActive(false);
+            gPU_Benchmark_Result.SetActive(true);
         }
 
         if (step < 7)
@@ -229,7 +237,7 @@ public class Hoge0 : MonoBehaviour
                 var (ul0, ul1, ul2) = Addlast();//端数の計算
                 ulong[] ulres = GPUtoCPU();//GPU→CPUで結果を取得し
                 //GPU時間はここで終了
-                Debug.Log("step" + step + ": GPU time=" + (seconds - starttime + Time.time - inframetime));
+                //Debug.Log("step" + step + "");
                 var (ul3, ul4, ul5) = Reduction(ulres);
                 //1つにまとめ
 
@@ -248,14 +256,14 @@ public class Hoge0 : MonoBehaviour
     }
 
 
-
+    //キャンセルするときもここくる
     public void EndStep7()
     {
-        Debug.Log(Gettime());
         step = 90;
         bigSum.Release();
         GetComponent<Button_BenchStart>().Setinteract();
     }
+
 
 
 
@@ -376,5 +384,6 @@ public class Hoge0 : MonoBehaviour
         return DateTime.Now.Millisecond + DateTime.Now.Second * 1000
          + DateTime.Now.Minute * 60 * 1000 + DateTime.Now.Hour * 60 * 60 * 1000;
     }
+
 
 }

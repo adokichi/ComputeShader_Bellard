@@ -4,7 +4,7 @@ using System.Text;
 
 
 
-public class FPSTextUI : MonoBehaviour
+public class GPUName : MonoBehaviour
 {
     private Text text;
     // Start is called before the first frame update
