@@ -6,6 +6,11 @@ using UnityEngine;
 public class BackProgressBar : MonoBehaviour
 {
     private SpriteRenderer sr;
+
+    [SerializeField]
+    float scalex;
+    [SerializeField]
+    float scaley;
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
@@ -15,7 +20,7 @@ public class BackProgressBar : MonoBehaviour
 
     public void SetProgress(float progress)
     {
-        sr.transform.localScale = new Vector3(26.0f * progress, 3.4f, 1f);
+        sr.transform.localScale = new Vector3(scalex * progress, scaley, 1f);
     }
 
 

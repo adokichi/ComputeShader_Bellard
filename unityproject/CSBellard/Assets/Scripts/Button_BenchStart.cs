@@ -13,8 +13,9 @@ public class Button_BenchStart : MonoBehaviour
 
     private void Start()
     {
-        //cancel_ui_text = GameObject.Find("TapToCancel_Text").GetComponent<Text>();
-        //cancel_ui_text.text = " ";
+        cancel_ui_text = GameObject.Find("TapToCancel_Text").GetComponent<Text>();
+        cancel_ui_text.text = " ";
+
         backImg = GameObject.Find("backimg").GetComponent<BackImg>();
         hoge = GetComponent<Hoge0>();
         
@@ -25,7 +26,7 @@ public class Button_BenchStart : MonoBehaviour
         //これから解析するとき
         if (mode == 1)
         {
-            //cancel_ui_text.text = "Tap to cancel";
+            cancel_ui_text.text = "Tap to cancel";
             backImg.SetNowbench();
             //string digits = GameObject.Find("TextDigits").GetComponent<Text>().text;
             //GetComponent<Hoge0>().ButtonPush(ulong.Parse(digits));
@@ -95,7 +96,7 @@ public class Button_BenchStart : MonoBehaviour
     public void Setinteract() {
         //GameObject.Find("Button_BenchStart").GetComponent<Button>().interactable = true;
         mode = 0;
-        //cancel_ui_text.text = " ";
+        cancel_ui_text.text = " ";
         backImg.SetWaitbench();
     }
 

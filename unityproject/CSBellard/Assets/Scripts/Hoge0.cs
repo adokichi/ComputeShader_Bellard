@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -250,6 +251,7 @@ public class Hoge0 : MonoBehaviour
 
     public void EndStep7()
     {
+        Debug.Log(Gettime());
         step = 90;
         bigSum.Release();
         GetComponent<Button_BenchStart>().Setinteract();
@@ -366,4 +368,13 @@ public class Hoge0 : MonoBehaviour
     {
         constTable.Release();
     }
+
+
+    //現在の時刻をms単位で取得
+    int Gettime()
+    {
+        return DateTime.Now.Millisecond + DateTime.Now.Second * 1000
+         + DateTime.Now.Minute * 60 * 1000 + DateTime.Now.Hour * 60 * 60 * 1000;
+    }
+
 }
