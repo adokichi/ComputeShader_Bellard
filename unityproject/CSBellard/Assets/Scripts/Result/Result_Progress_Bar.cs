@@ -13,12 +13,19 @@ public class Result_Progress_Bar : MonoBehaviour
 
     [SerializeField]
     Text scoretext;
-    public int score = 550;
+
+    [SerializeField]
+    GameObject hoge0obj;
+
+    Hoge0 hoge0;
+
+    long score = 550;
     void Start()
     {
         tex = new Texture2D(wx, wy);
         GetComponent<SpriteRenderer>().sprite= Sprite.Create(tex, new Rect(0.0f, 0.0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1.0f);
         TexCntInit();
+        hoge0 = hoge0obj.GetComponent<Hoge0>();
     }
 
     public void TexCntInit()
@@ -37,6 +44,12 @@ public class Result_Progress_Bar : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (cnt == 0) //初期化みたいなもん
+        {
+            score = hoge0.lscore;
+        }
+
+
         if (cnt <= maxrad) 
         {
             float leng = 103.0f;

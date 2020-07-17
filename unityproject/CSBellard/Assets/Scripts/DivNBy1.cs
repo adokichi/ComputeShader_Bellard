@@ -5,6 +5,11 @@ using UnityEngine;
 //ＣＰＵ演算に関連する関数だけもつobject
 public class DivNBy1 : MonoBehaviour
 {
+    int[] nmr = { 5, 0, 8, 6, 2, 2, 0 };//Bellard式の分子が2の何乗か
+    int[] nmrsign = { 1, 1, 0, 1, 1, 1, 0 };//Bellard式の分子の符号
+    int[] den0 = { 4, 4, 10, 10, 10, 10, 10 };//Bellard式の分母のkの係数
+    int[] den1 = { 1, 3, 1, 3, 5, 7, 9 };//Bellard式の分母の端数項
+
 
     void umul(ulong u, ulong v, ref ulong h, ref ulong l)
     {
@@ -252,6 +257,85 @@ public class DivNBy1 : MonoBehaviour
             tmpans0 <<= shiftnum;
         }
     }
+
+
+
+
+
+
+
+
+
+    //lastというが実は最初のk=0～255のときも計算している
+    public (ulong, ulong, ulong) Addlast(ulong d,int step)
+    {
+        ulong tmpans0 = 0;
+        ulong tmpans1 = 0;
+        ulong tmpans2 = 0;
+        ulong dnm;
+        ulong[] u = { 0, 0, 0, 0 };
+        ulong[] q = { 0, 0, 0, 0 };
+        //d-k<=0のときのを計算
+        for (int i = 0; i < 31; i++)
+        {
+            ulong k = d + (ulong)i;
+            dnm = k * (ulong)den0[step] + (ulong)den1[step];
+            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = 0;
+            int bsup = 192 - i * 10;
+            if (bsup < 0) break;
+            u[bsup / 64] = (ulong)1 << (bsup % 64);
+            divnby1(4, u, dnm, q);
+
+            if ((k % 2 + (ulong)nmrsign[step]) % 2 == 1)
+            {
+                q[0] = ~q[0];//bit反転は999999999-qしてるのと同じ
+                q[1] = ~q[1];
+                q[2] = ~q[2];
+                ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
+            }
+            ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0], q[1], q[2]);
+        }
+
+
+        //k=0のとき～k=255のとき
+        ulong nmrx;
+        ulong nmrp;
+        for (ulong iii = 0; iii < 256; iii++)
+        {
+            if (d <= iii) break;
+            nmrx = 1;
+            nmrp = 1024;
+            dnm = (ulong)den1[step] + (ulong)den0[step] * iii;
+
+            for (ulong dd = d - iii; dd != 0; dd /= 2)
+            { //べき剰余
+                if (dd % 2 == 1)
+                {
+                    nmrx = nmrx * nmrp % dnm;
+                }
+                nmrp = nmrp * nmrp % dnm;
+            }
+
+            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmrx;
+            divnby1(4, u, dnm, q);
+
+            if (((ulong)nmrsign[step] + iii) % 2 == 1)
+            {
+                q[0] = ~q[0];//bit反転は999999999-qしてるのとほぼ同じ
+                q[1] = ~q[1];
+                q[2] = ~q[2];
+                ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
+            }
+            ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0], q[1], q[2]);
+        }
+
+        return (tmpans0, tmpans1, tmpans2);
+    }
+
+
+
+
+
 
 
 

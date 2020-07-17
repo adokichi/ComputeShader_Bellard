@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+
 
 public class Hoge0 : MonoBehaviour
 {
@@ -28,6 +27,8 @@ public class Hoge0 : MonoBehaviour
 
     int starttime;
     int endtime;
+    public int ranker_flag = 1;//今計算しているdigitsがランキングにのるかどうか
+    public int last_ranker_number = 1;//最後に計算してランキングにのったnunmber
 
     ulong tempertureLoad = 20;//温度によって負荷をかえる
 
@@ -40,6 +41,15 @@ public class Hoge0 : MonoBehaviour
     [SerializeField]
     GameObject gPU_Benchmark_Result;
 
+    [SerializeField]
+    UnderButtonManager underButtonManager;
+    public long lscore;
+
+
+
+
+
+
     int[] ulongtouint2(ulong a) {
         int[] b = new int[2];
         b[0] = (int)(a % (ulong)4294967296);
@@ -50,14 +60,19 @@ public class Hoge0 : MonoBehaviour
 
     void Start()
     {
-        Screen.sleepTimeout = SleepTimeout.NeverSleep;//Androidでスリープにならないように
+        //Androidでスリープにならないように
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
+        //コンポーネント取得
         divNBy1 = GetComponent<DivNBy1>();
         backProgressBar = back_progress_bar.GetComponent<BackProgressBar>();
-        constTable = new ComputeBuffer(256, sizeof(uint));
 
+        //コンピュートシェーダー関連
+        constTable = new ComputeBuffer(256, sizeof(uint));
         kernelMain = shader.FindKernel("Mainloop");
         kernelZeroset = shader.FindKernel("Zeroset");
+        //引数をセット
+        shader.SetBuffer(kernelMain, "ConstTable", constTable);
 
         //データセット
         uint[] host_consttable = { 0x7fd, 0x7f5, 0x7ed, 0x7e5, 0x7dd, 0x7d5, 0x7ce, 0x7c6, 0x7bf, 0x7b7,
@@ -88,14 +103,15 @@ public class Hoge0 : MonoBehaviour
     0x40a, 0x408, 0x406, 0x404, 0x402, 0x400};
         constTable.SetData(host_consttable);
 
-        //引数をセット
-        shader.SetBuffer(kernelMain, "ConstTable", constTable);
-
         ans0 = 0;
         ans1 = 0;
         ans2 = 0;
-        Debug.Log("Initialize end");
         step = 90;//90は解析前の意味
+
+        last_ranker_number = 1;//最後に解析したrankにのるdigitのnumber1が最小、40がmidlle、2500*20がhigh
+
+        //デバッグ用
+        Debug.Log("Initialize complete");
     }
 
 
@@ -105,6 +121,7 @@ public class Hoge0 : MonoBehaviour
 
 
     //step0の前の初期化処理
+    //OnClickからとんでくる
     public void ButtonPush(ulong inul)
     {
         d = inul;
@@ -116,8 +133,8 @@ public class Hoge0 : MonoBehaviour
         shader.SetBuffer(kernelMain, "bigSum", bigSum);
         shader.SetBuffer(kernelZeroset, "bigSum", bigSum);
         shader.SetInt("gsize", gridn * blockn);
-        parameset();//毎ステップやるやつ
         Debug.Log("Benchmark Start!!!");
+        parameset();//毎ステップやるやつ
     }
 
 
@@ -175,14 +192,14 @@ public class Hoge0 : MonoBehaviour
             tempertureLoad = 13;
         }
 
-        if (ff < 32.0) 
+        if (ff < 34.0) 
         {
             tempertureLoad = 20;
         }
     }
 
     //step内ループ。1CalcでもGPUコードがわでループがある
-    void Calc()
+    void OneDispatchCalc()
     {
         offset = k_max;
         k_max = k_max + (ulong)gridn * (ulong)blockn * iterationsPerFrame * tempertureLoad / 20;
@@ -211,41 +228,36 @@ public class Hoge0 : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (step == 7) {
-            endtime = Gettime();
-            Debug.Log("--------------------PI value output--------------------");
-            DebugAns012(ans0, ans1, ans2);
-            var calctime = endtime - starttime;
-            if (calctime < 0) calctime += 60 * 60 * 1000 * 24;
-            Debug.Log("Total Time(msec):" + calctime);
-            Debug.Log("-------------------------------------------------------");
-            step++;
-            //解放
-            EndStep7();
-            gPU_Benchmark_Scene.SetActive(false);
-            gPU_Benchmark_Result.SetActive(true);
+        if (step == 7)
+        {
+            CalcFinished();//ちゃんと計算が終わった時
         }
 
         if (step < 7)
         {
-            Calc();
+            OneDispatchCalc();//1フレームに1回dispatch
+
             //そのstepで最後まで計算したら
             if (k_max == k_max_end)
             {
                 //GPU→CPUで結果を1つにまとめて出力したい
                 //ただGPU→CPUでブロッキングが発生するのでまずCPU負荷を先に処理
-                var (ul0, ul1, ul2) = Addlast();//端数の計算
+
+                var (ul0, ul1, ul2) = divNBy1.Addlast(d, step);//端数の計算
                 ulong[] ulres = GPUtoCPU();//GPU→CPUで結果を取得し
                 //GPU時間はここで終了
-                //Debug.Log("step" + step + "");
                 var (ul3, ul4, ul5) = Reduction(ulres);
                 //1つにまとめ
 
                 //CPU側端数結果とGPU結果を足して
                 divNBy1.ul3add(ref ul0, ref ul1, ref ul2, ul3, ul4, ul5);
-                (ul0, ul1, ul2) = Mulnmr(ul0, ul1, ul2);//分子をかける
+                //分子をかけて
+                divNBy1.ul3shift(ref ul0, ref ul1, ref ul2, nmr[step]);
+                //さっきまでの答えを足す
+                divNBy1.ul3add(ref ans0, ref ans1, ref ans2, ul0, ul1, ul2);
                 //完成！
-                DebugAns012(ul0, ul1, ul2);
+                if (step == 6) endtime = Gettime();
+                DebugAns012(ul0, ul1, ul2);//Debug出力はstep++の前に
                 step++;
                 if (step < 7)
                 {
@@ -261,7 +273,30 @@ public class Hoge0 : MonoBehaviour
     {
         step = 90;
         bigSum.Release();
-        GetComponent<Button_BenchStart>().Setinteract();
+        //ボタンを戻す
+        GetComponent<Button_BenchStart>().Setinteract();//文字消したりmode変更したり
+    }
+
+    //キャンセルじゃなくちゃんと終わった時
+    void CalcFinished()
+    {
+        Debug.Log("--------------------PI value output--------------------");
+        DebugAns012(ans0, ans1, ans2);
+        var calctime = Modifytime(endtime - starttime);
+        Debug.Log("Total Time(msec):" + calctime);
+        Debug.Log("-------------------------------------------------------");
+        step++;
+        //vram解放など
+        lscore = (long)67108864 * (long)ranker_flag / (long)(calctime);
+
+        EndStep7();
+        if (ranker_flag != 0)//ランキングに載せる！！
+        {
+            gPU_Benchmark_Scene.SetActive(false);
+            gPU_Benchmark_Result.SetActive(true);
+            last_ranker_number = ranker_flag;
+            GetComponent<MyRankingServer>().save(lscore, ranker_flag);
+        }
     }
 
 
@@ -273,9 +308,6 @@ public class Hoge0 : MonoBehaviour
 
 
 
-
-    
-    
     ulong[] GPUtoCPU() {
         ulong[] ulres = new ulong[gridn * blockn * 3];
         bigSum.GetData(ulres);//, 0, 0, igridn * 64 * 3
@@ -294,83 +326,6 @@ public class Hoge0 : MonoBehaviour
     }
 
 
-    //lastというが実は最初のk=0～255のときも計算している
-    (ulong, ulong, ulong) Addlast()
-    {
-        ulong tmpans0 = 0;
-        ulong tmpans1 = 0;
-        ulong tmpans2 = 0;
-        ulong dnm;
-        ulong[] u = { 0, 0, 0, 0 };
-        ulong[] q = { 0, 0, 0, 0 };
-        //d-k<=0のときのを計算
-        for (int i = 0; i < 31; i++) 
-        {
-            ulong k = d + (ulong)i;
-            dnm = k * (ulong)den0[step] + (ulong)den1[step];
-            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = 0;
-            int bsup = 192 - i * 10;
-            if (bsup < 0) break;
-            u[bsup / 64] = (ulong)1 << (bsup % 64);
-            divNBy1.divnby1(4, u, dnm, q);
-
-            if ((k % 2 + (ulong)nmrsign[step]) % 2 == 1) 
-            {
-                q[0] = ~q[0];//bit反転は999999999-qしてるのと同じ
-                q[1] = ~q[1];
-                q[2] = ~q[2];
-                divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
-            }
-            divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0],q[1],q[2]);
-        }
-
-
-        //k=0のとき～k=255のとき
-        ulong nmrx;
-        ulong nmrp;
-        for (ulong iii = 0; iii < 256; iii++)
-        {
-            if (d <= iii) break;
-            nmrx = 1;
-            nmrp = 1024;
-            dnm = (ulong)den1[step]+ (ulong)den0[step]*iii;
-            
-            for (ulong dd = d-iii; dd != 0; dd /= 2)
-            { //べき剰余
-                if (dd % 2 == 1)
-                {
-                    nmrx = nmrx * nmrp % dnm;
-                }
-                nmrp = nmrp * nmrp % dnm;
-            }
-
-            u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmrx;
-            divNBy1.divnby1(4, u, dnm, q);
-
-            if (((ulong)nmrsign[step]+iii) % 2 == 1)
-            {
-                q[0] = ~q[0];//bit反転は999999999-qしてるのとほぼ同じ
-                q[1] = ~q[1];
-                q[2] = ~q[2];
-                divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, 1, 0, 0);
-            }
-            divNBy1.ul3add(ref tmpans0, ref tmpans1, ref tmpans2, q[0], q[1], q[2]);
-        }
-
-        return (tmpans0, tmpans1, tmpans2);
-    }
-
-
-    //分子を考慮してシフト
-    (ulong, ulong, ulong) Mulnmr(ulong tmpans0, ulong tmpans1, ulong tmpans2)
-    {
-        //分子をかける＝シフト
-        divNBy1.ul3shift(ref tmpans0, ref tmpans1, ref tmpans2, nmr[step]);
-        divNBy1.ul3add(ref ans0, ref ans1, ref ans2, tmpans0, tmpans1, tmpans2);
-        return (tmpans0, tmpans1, tmpans2);
-    }
-
-
 
     private void OnDestroy()
     {
@@ -382,8 +337,43 @@ public class Hoge0 : MonoBehaviour
     int Gettime()
     {
         return DateTime.Now.Millisecond + DateTime.Now.Second * 1000
-         + DateTime.Now.Minute * 60 * 1000 + DateTime.Now.Hour * 60 * 60 * 1000;
+         + DateTime.Now.Minute * 60 * 1000 + DateTime.Now.Hour * 60 * 60 * 1000
+         + DateTime.Now.Day * 60 * 60 * 1000 * 24;
     }
 
+    int Modifytime(int minus_time) 
+    {
+        if (minus_time > 0) return minus_time;
+        int mdays = 31;
+        switch ( (DateTime.Now.Month+10)%12+1 )
+        {
+            case 1:
+            case 3:
+            case 5:
+            case 7:
+            case 8:
+            case 10:
+            case 12:
+                mdays = 31;
+                break;
+            case 4:
+            case 6:
+            case 9:
+            case 11:
+                mdays = 30;
+                break;
+            case 2:
+                int year = DateTime.Now.Year;
+                mdays = 28;
+                if (year % 4 == 0) mdays = 29;
+                if (year % 100 == 0) mdays = 28;
+                if (year % 400 == 0) mdays = 29;
+                break;
+            default:
+                mdays = 31;
+                break;
+        }
+        return minus_time + 24 * 1000 * 60 * 60 * mdays;
+    }
 
 }

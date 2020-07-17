@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5368377740732661854
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5368377740732661852}
+  - component: {fileID: 5368377740732661855}
+  m_Layer: 0
+  m_Name: RankingSceneManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5368377740732661852
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5368377740732661854}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5368377740732661855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5368377740732661854}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13be08c3906814b59acb67e0694315bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  captionLabel: {fileID: 0}
+  scoreLabel: {fileID: 0}
+  highScoreLabel: {fileID: 0}
+  nameInputField: {fileID: 0}
+  sendScoreButton: {fileID: 0}
+  closeButton: {fileID: 0}
+  scrollViewContent: {fileID: 0}
+  rankingNodePrefab: {fileID: 1390916731738148, guid: 3873197bd3560499ea74f6d464f52cf0,
+    type: 3}
+  readingNodePrefab: {fileID: 1697434335251524, guid: 4c6a250f3c6f843ef990e40389cb6254,
+    type: 3}
+  notFoundNodePrefab: {fileID: 1697434335251524, guid: 98a445350dbe3473e9e5158ac55d6e94,
+    type: 3}
+  unavailableNodePrefab: {fileID: 1697434335251524, guid: 8cfbc606367ac4d27b4a3c4b2d4646b5,
+    type: 3}
