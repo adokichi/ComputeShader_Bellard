@@ -94,6 +94,7 @@ public class Ranking : MonoBehaviour
                        Mathf.Log((long)objList[idx]["score"] + 1) * bar_scale
                        , 34.0f);
                    t.sizeDelta = sizeDelta;
+                   t.localScale = new Vector3(1, 1, 1);
 
                    //GPU名
                    objs[i * 3 + 1] = obj = Instantiate(name_text_prefab, transform.position, Quaternion.identity);
@@ -102,6 +103,7 @@ public class Ranking : MonoBehaviour
                    obj.GetComponent<SelfSetRectPos_text>().no = i;
                    if (colflag == 1)
                        obj.GetComponent<Text>().color = new Color(1, 1, 1);
+                   obj.GetComponent<RectTransform>().localScale = new Vector3(1, 1, 1);
 
                    //socre
                    objs[i * 3 + 2] = obj = Instantiate(score_text_prefab, transform.position, Quaternion.identity);
@@ -110,6 +112,7 @@ public class Ranking : MonoBehaviour
                    obj.GetComponent<SelfSetRectPos_text>().no = i;
                    if (colflag == 1)
                        obj.GetComponent<Text>().color = new Color(1, 1, 1);
+                   obj.GetComponent<RectTransform>().localScale = new Vector3(1, 1, 1);
                }
            }
        });
