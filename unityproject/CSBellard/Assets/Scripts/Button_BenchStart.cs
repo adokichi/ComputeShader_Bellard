@@ -15,13 +15,14 @@ public class Button_BenchStart : MonoBehaviour
     Hoge0 hoge;
     [SerializeField]
     UnderButtonManager underButtonManager;
+    [SerializeField]
+    Slider slider0;
+    [SerializeField]
+    Slider slider1;
 
     private void Start()
     {
-        //cancel_ui_text = GameObject.Find("TapToCancel_Text").GetComponent<Text>();
         cancel_ui_text.text = " ";
-        //backImg = GameObject.Find("backimg").GetComponent<BackImg>();
-        //hoge = GetComponent<Hoge0>();
     }
     public void OnClick()
     {
@@ -34,12 +35,14 @@ public class Button_BenchStart : MonoBehaviour
             underButtonManager.button0.interactable = false;
             underButtonManager.button1.interactable = false;
             underButtonManager.button2.interactable = false;
+            slider0.interactable = false;
+            slider1.interactable = false;
 
             //string digits = GameObject.Find("TextDigits").GetComponent<Text>().text;
             //GetComponent<Hoge0>().ButtonPush(ulong.Parse(digits));
             int digits_ = GameObject.Find("Dropdown_digit").GetComponent<Dropdown>().value;
-            int groupsize_ = GameObject.Find("Dropdown_GroupSize").GetComponent<Dropdown>().value;
-            int iterpf_ = GameObject.Find("Dropdown_Ryuudo").GetComponent<Dropdown>().value;
+            int groupsize_ = (int)GameObject.Find("GroupSizeSlider").GetComponent<Slider>().value;
+            int threadnum_ = (int)GameObject.Find("ThreadSlider").GetComponent<Slider>().value;
 
             hoge.ranker_flag = 0;//ランキングに記録するかどうか
             ulong digits = 0;
@@ -101,8 +104,8 @@ public class Button_BenchStart : MonoBehaviour
                     break;
             }
 
-            hoge.gridn = 1 << (groupsize_ + 2);
-            hoge.iterationsPerFrame = 1UL << (iterpf_);
+            hoge.gridn = 1 << (groupsize_);
+            hoge.blockn = 1 << (threadnum_);
             hoge.ButtonPush(((digits - 1) * 2 - 3) / 5);
         }
         else
@@ -123,6 +126,7 @@ public class Button_BenchStart : MonoBehaviour
         underButtonManager.button0.interactable = false;
         underButtonManager.button1.interactable = true;
         underButtonManager.button2.interactable = true;
+        slider0.interactable = true;
+        slider1.interactable = true;
     }
-
 }

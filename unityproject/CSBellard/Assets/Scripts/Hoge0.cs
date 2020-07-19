@@ -8,14 +8,16 @@ public class Hoge0 : MonoBehaviour
     public ComputeShader shader;
 
     public int gridn = 1024;
-    int blockn = 64;//ここを変えたときはcompute shader側も変えないといけない
+    public int blockn = 64;//1groupが何threadもっているか。対数は逐一計算
+
     public ulong iterationsPerFrame;
 
     ulong debug0 = 0;
 
     ComputeBuffer bigSum;
     ComputeBuffer constTable;
-    int kernelMain, kernelZeroset;
+    int[] kernelMain, kernelZeroset;
+
     ulong d, offset, k_max, k_max_end;
 
     public int step;//式0-6のうちどれを計算しているか
@@ -23,12 +25,11 @@ public class Hoge0 : MonoBehaviour
     int[] nmrsign = { 1, 1, 0, 1, 1, 1, 0 };//Bellard式の分子の符号
     int[] den0 = { 4, 4, 10, 10, 10, 10, 10 };//Bellard式の分母のkの係数
     int[] den1 = { 1, 3, 1, 3, 5, 7, 9 };//Bellard式の分母の端数項
-    ulong ans0 = 0, ans1 = 0, ans2 = 0;
+    ulong ans0, ans1, ans2;
 
-    int starttime;
-    int endtime;
-    public int ranker_flag = 1;//今計算しているdigitsがランキングにのるかどうか
-    public int last_ranker_number = 1;//最後に計算してランキングにのったnunmber
+    int starttime, endtime;
+    public int ranker_flag;//今計算しているdigitsがランキングにのるかどうか。0のってない、1最初の、40次の、25000次の次の
+    public int last_ranker_number;//最後に計算してランキングにのったnunmber
 
     ulong tempertureLoad = 20;//温度によって負荷をかえる
 
@@ -41,12 +42,23 @@ public class Hoge0 : MonoBehaviour
     [SerializeField]
     GameObject gPU_Benchmark_Result;
 
-    [SerializeField]
-    UnderButtonManager underButtonManager;
     public long lscore;
 
 
 
+    void ComputeShaderInit()
+    {
+        kernelMain = new int[9];
+        kernelZeroset = new int[9];
+        constTable = new ComputeBuffer(256, sizeof(uint));
+        for (int i = 0; i < 9; i++) 
+        {
+            kernelMain[i] = shader.FindKernel("Mainloop" + (1 << i).ToString());
+            kernelZeroset[i] = shader.FindKernel("Zeroset" + (1 << i).ToString());
+            //引数をセット
+            shader.SetBuffer(kernelMain[i], "ConstTable", constTable);
+        }
+    }
 
 
 
@@ -68,11 +80,7 @@ public class Hoge0 : MonoBehaviour
         backProgressBar = back_progress_bar.GetComponent<BackProgressBar>();
 
         //コンピュートシェーダー関連
-        constTable = new ComputeBuffer(256, sizeof(uint));
-        kernelMain = shader.FindKernel("Mainloop");
-        kernelZeroset = shader.FindKernel("Zeroset");
-        //引数をセット
-        shader.SetBuffer(kernelMain, "ConstTable", constTable);
+        ComputeShaderInit();
 
         //データセット
         uint[] host_consttable = { 0x7fd, 0x7f5, 0x7ed, 0x7e5, 0x7dd, 0x7d5, 0x7ce, 0x7c6, 0x7bf, 0x7b7,
@@ -103,12 +111,10 @@ public class Hoge0 : MonoBehaviour
     0x40a, 0x408, 0x406, 0x404, 0x402, 0x400};
         constTable.SetData(host_consttable);
 
-        ans0 = 0;
-        ans1 = 0;
-        ans2 = 0;
         step = 90;//90は解析前の意味
 
         last_ranker_number = 1;//最後に解析したrankにのるdigitのnumber1が最小、40がmidlle、2500*20がhigh
+        iterationsPerFrame = 64;//これは固定のつもりだが今後変更可能
 
         //デバッグ用
         Debug.Log("Initialize complete");
@@ -130,8 +136,8 @@ public class Hoge0 : MonoBehaviour
         ans1 = 0;
         ans2 = 0;
         bigSum = new ComputeBuffer(gridn * blockn * 3, sizeof(ulong));//計算ごとに初期化
-        shader.SetBuffer(kernelMain, "bigSum", bigSum);
-        shader.SetBuffer(kernelZeroset, "bigSum", bigSum);
+        shader.SetBuffer(kernelMain[(int)Mathf.Log(blockn, 2)], "bigSum", bigSum);
+        shader.SetBuffer(kernelZeroset[(int)Mathf.Log(blockn, 2)], "bigSum", bigSum);
         shader.SetInt("gsize", gridn * blockn);
         Debug.Log("Benchmark Start!!!");
         parameset();//毎ステップやるやつ
@@ -150,7 +156,7 @@ public class Hoge0 : MonoBehaviour
         shader.SetInt("numesign", nmrsign[step]);
         shader.SetInt("den0", den0[step]);
         shader.SetInt("den1", den1[step]);
-        shader.Dispatch(kernelZeroset, gridn, 1, 1);//0埋め
+        shader.Dispatch(kernelZeroset[(int)Mathf.Log(blockn, 2)], gridn, 1, 1);//0埋め
         
         if (step == 0) starttime = Gettime();
     }
@@ -210,11 +216,10 @@ public class Hoge0 : MonoBehaviour
         shader.SetInts("k_max", ulongtouint2(k_max));
 
         // GPUで計算
-        shader.Dispatch(kernelMain, gridn, 1, 1);
+        shader.Dispatch(kernelMain[(int)Mathf.Log(blockn, 2)], gridn, 1, 1);
 
         //プログレスバー更新
         backProgressBar.SetProgress(Mathf.Clamp((step * 1.0f + (1.0f * k_max / k_max_end)) / 7.0f, 0f, 1.0f));
-
     }
 
 
@@ -242,7 +247,6 @@ public class Hoge0 : MonoBehaviour
             {
                 //GPU→CPUで結果を1つにまとめて出力したい
                 //ただGPU→CPUでブロッキングが発生するのでまずCPU負荷を先に処理
-
                 var (ul0, ul1, ul2) = divNBy1.Addlast(d, step);//端数の計算
                 ulong[] ulres = GPUtoCPU();//GPU→CPUで結果を取得し
                 //GPU時間はここで終了

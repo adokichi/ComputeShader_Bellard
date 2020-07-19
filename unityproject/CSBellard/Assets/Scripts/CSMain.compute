@@ -1,5 +1,22 @@
-﻿#pragma kernel Mainloop
-#pragma kernel Zeroset
+﻿#pragma kernel Mainloop1
+#pragma kernel Mainloop2
+#pragma kernel Mainloop4
+#pragma kernel Mainloop8
+#pragma kernel Mainloop16
+#pragma kernel Mainloop32
+#pragma kernel Mainloop64
+#pragma kernel Mainloop128
+#pragma kernel Mainloop256
+#pragma kernel Zeroset1
+#pragma kernel Zeroset2
+#pragma kernel Zeroset4
+#pragma kernel Zeroset8
+#pragma kernel Zeroset16
+#pragma kernel Zeroset32
+#pragma kernel Zeroset64
+#pragma kernel Zeroset128
+#pragma kernel Zeroset256
+
 //Read and Write
 RWStructuredBuffer<uint2> bigSum;
 //Read Only
@@ -543,6 +560,43 @@ uint2 powmodn(uint2 x, uint2 p, uint2 n)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
 [numthreads(64, 1, 1)]
 //メイン計算部分
 //べき乗、整数除算のループ
@@ -570,7 +624,7 @@ void Mainloop(uint idx : SV_DispatchThreadID)
 	uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;
 	uint2 u[4];
 	uint2 q[4];
-	
+
 	for (; lt(k, k_max);)
 	{
 		cstmp.x = 1024; cstmp.y = 0;
@@ -579,7 +633,7 @@ void Mainloop(uint idx : SV_DispatchThreadID)
 		if (revflg==1) {
 			nmr = ulsub(dnm, nmr);
 		}
-		
+
 		u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmr;
 		q[0] = 0; q[1] = 0; q[2] = 0; q[3] = 0;
 		//divnby1(4, u, dnm, q);
@@ -588,20 +642,20 @@ void Mainloop(uint idx : SV_DispatchThreadID)
 		uint2 v, kk, ui;
 		uint4 out4;
 		uint l, i;
-		// Normalize d, storing the shift amount in l. 
+		// Normalize d, storing the shift amount in l.
 		l = clz2(dnm);
 		uint2 d_dmy = u2shl(dnm, l);
-		// Compute the reciprocal. 
+		// Compute the reciprocal.
 		v = reciprocal_word(d_dmy);
-		
-		// Perform the division. 
+
+		// Perform the division.
 		kk = u2shr(u[3], 64 - l);
-		
+
 			ui = u2shl(u[3], l);//もともとforループだったところを手動で展開
 			out4 = div2by1(kk, ui, d_dmy, v);
 			q[3] = out4.xy;
 			kk = out4.zw;
-			
+
 			out4 = div2by1(kk, 0, d_dmy, v);
 			q[2] = out4.xy;
 			kk = out4.zw;
@@ -609,12 +663,12 @@ void Mainloop(uint idx : SV_DispatchThreadID)
 			out4 = div2by1(kk, 0, d_dmy, v);
 			q[1] = out4.xy;
 			kk = out4.zw;
-		
+
 		out4 = div2by1(kk, 0, d_dmy, v);
 		q[0] = out4.xy;
 		//ここまで divnby1
-		
-		
+
+
 
 		ulsum2_ += q[0];
 		ulsum1_ += q[1];
@@ -642,17 +696,186 @@ void Mainloop(uint idx : SV_DispatchThreadID)
 	ulsum0_.x += up3;
 	up4 += (ulsum0_.x < up3);
 	ulsum0_.y += up4;
-	
+
 	bigSum[idx * 3 + 0] = ulsum2_;
 	bigSum[idx * 3 + 1] = ulsum1_;
 	bigSum[idx * 3 + 2] = ulsum0_;
 }
+*/
 
 
-[numthreads(64, 1, 1)]
-void Zeroset(uint idx : SV_DispatchThreadID)
+
+#define MAINCODE {uint2 k = offset;\
+k.x += idx;\
+if (k.x < idx)k.y++;\
+uint revflg;\
+revflg = ((numesign + k.x % 2) % 2);\
+uint2 dnm = offset_mul_den0;\
+uint valtmp = den0 * idx + den1;\
+dnm.x += valtmp;\
+if (dnm.x < valtmp)dnm.y++;\
+uint2 cstmp;\
+uint2 dnmadd;\
+dnmadd.x = gsize * den0; dnmadd.y = 0;\
+uint2 nmr;\
+\
+uint2 ulsum0_ = bigSum[idx * 3 + 2];\
+uint2 ulsum1_ = bigSum[idx * 3 + 1];\
+uint2 ulsum2_ = bigSum[idx * 3 + 0];\
+uint up0 = 0, up1 = 0, up2 = 0, up3 = 0, up4 = 0;\
+uint2 u[4];\
+uint2 q[4];\
+\
+for (; lt(k, k_max);)\
+{\
+	cstmp.x = 1024; cstmp.y = 0;\
+	nmr = powmodn(cstmp, ulsub(d, k), dnm);\
+	if (revflg == 1) {\
+		nmr = ulsub(dnm, nmr);\
+	}\
+	u[0] = 0; u[1] = 0; u[2] = 0; u[3] = nmr;\
+	q[0] = 0; q[1] = 0; q[2] = 0; q[3] = 0;\
+	uint2 v, kk, ui;\
+	uint4 out4;\
+	uint l, i;\
+	l = clz2(dnm);\
+	uint2 d_dmy = u2shl(dnm, l);\
+	v = reciprocal_word(d_dmy);\
+	kk = u2shr(u[3], 64 - l);\
+	ui = u2shl(u[3], l);\
+	out4 = div2by1(kk, ui, d_dmy, v);\
+	q[3] = out4.xy;\
+	kk = out4.zw;\
+	out4 = div2by1(kk, 0, d_dmy, v);\
+	q[2] = out4.xy;\
+	kk = out4.zw;\
+	out4 = div2by1(kk, 0, d_dmy, v);\
+	q[1] = out4.xy;\
+	kk = out4.zw;\
+	out4 = div2by1(kk, 0, d_dmy, v);\
+	q[0] = out4.xy;\
+	ulsum2_ += q[0];\
+	ulsum1_ += q[1];\
+	ulsum0_ += q[2];\
+	up0 += (ulsum2_.x < q[0].x);\
+	up1 += (ulsum2_.y < q[0].y);\
+	up2 += (ulsum1_.x < q[1].x);\
+	up3 += (ulsum1_.y < q[1].y);\
+	up4 += (ulsum0_.x < q[2].x);\
+	dnm = uladd(dnm, dnmadd);\
+	k.x += gsize;\
+	if (k.x < gsize) k.y++;\
+}\
+ulsum2_.y += up0;\
+up1 += (ulsum2_.y < up0);\
+ulsum1_.x += up1;\
+up2 += (ulsum1_.x < up1);\
+ulsum1_.y += up2;\
+up3 += (ulsum1_.y < up2);\
+ulsum0_.x += up3;\
+up4 += (ulsum0_.x < up3);\
+ulsum0_.y += up4;\
+bigSum[idx * 3 + 0] = ulsum2_;\
+bigSum[idx * 3 + 1] = ulsum1_;\
+bigSum[idx * 3 + 2] = ulsum0_;\
+}\
+
+
+
+
+
+
+
+
+[numthreads(1, 1, 1)]
+void Mainloop1(uint idx : SV_DispatchThreadID)
 {
-	bigSum[idx * 3 + 0] = 0;
-	bigSum[idx * 3 + 1] = 0;
-	bigSum[idx * 3 + 2] = 0;
+	MAINCODE
+}
+[numthreads(2, 1, 1)]
+void Mainloop2(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(4, 1, 1)]
+void Mainloop4(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(8, 1, 1)]
+void Mainloop8(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(16, 1, 1)]
+void Mainloop16(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(32, 1, 1)]
+void Mainloop32(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(64, 1, 1)]
+void Mainloop64(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(128, 1, 1)]
+void Mainloop128(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+[numthreads(256, 1, 1)]
+void Mainloop256(uint idx : SV_DispatchThreadID)
+{
+	MAINCODE
+}
+
+
+[numthreads(1, 1, 1)]
+void Zeroset1(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0;bigSum[idx * 3 + 1] = 0;bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(2, 1, 1)]
+void Zeroset2(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(4, 1, 1)]
+void Zeroset4(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(8, 1, 1)]
+void Zeroset8(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(16, 1, 1)]
+void Zeroset16(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(32, 1, 1)]
+void Zeroset32(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(64, 1, 1)]
+void Zeroset64(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(128, 1, 1)]
+void Zeroset128(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
+}
+[numthreads(256, 1, 1)]
+void Zeroset256(uint idx : SV_DispatchThreadID)
+{
+	bigSum[idx * 3 + 0] = 0; bigSum[idx * 3 + 1] = 0; bigSum[idx * 3 + 2] = 0;
 }
